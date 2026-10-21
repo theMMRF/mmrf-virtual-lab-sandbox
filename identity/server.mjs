@@ -92,6 +92,7 @@ const server = http.createServer(async (req, res) => {
     }
     let target = targets.frontend;
     let targetPath = req.url;
+    let targetMethod = req.method;
     if (path.startsWith('/guppy/')) { target = targets.guppy; targetPath = req.url.slice('/guppy'.length); }
     if (path.startsWith('/analysis/')) target = targets.analysis;
     let ppBody;
@@ -99,10 +100,20 @@ const server = http.createServer(async (req, res) => {
       target = targets.proteinpaint;
       const ppUrl = new URL(req.url.slice('/protein-paint'.length), target);
       if (ppUrl.searchParams.has('filter0')) {
-        const payload = Object.fromEntries(ppUrl.searchParams);
+        const payload = Object.fromEntries([...ppUrl.searchParams].map(([key, value]) => {
+          try { return [key, JSON.parse(value)]; } catch { return [key, value]; }
+        }));
         const bridged = bridgePayload(payload, cases);
-        ppUrl.searchParams.delete('filter0');
-        if (bridged.filter) ppUrl.searchParams.set('filter', JSON.stringify(bridged.filter));
+        // Expanded sample lists can exceed Node's HTTP request-line/header limit.
+        // Public ProteinPaint query routes accept the same read operation as JSON POST.
+        if (req.method === 'GET') {
+          targetMethod = 'POST';
+          ppBody = Buffer.from(JSON.stringify(bridged));
+          ppUrl.search = '';
+        } else {
+          ppUrl.searchParams.delete('filter0');
+          if (bridged.filter) ppUrl.searchParams.set('filter', JSON.stringify(bridged.filter));
+        }
       }
       targetPath = ppUrl.pathname + ppUrl.search;
       if (req.method === 'POST' && req.headers['content-type']?.includes('application/json')) {
@@ -120,13 +131,18 @@ const server = http.createServer(async (req, res) => {
       cookie: `access_token=${token}`, 'x-forwarded-host': req.headers.host, 'x-forwarded-proto': 'http' };
     delete headers['proxy-authorization'];
     if (ppBody) {
+      headers['content-type'] = 'application/json';
       headers['content-length'] = String(ppBody.length);
       delete headers['transfer-encoding'];
     }
     const destination = new URL(targetPath, target);
     if (destination.origin !== new URL(target).origin) return json(res, { error: 'Invalid sandbox path' }, 400);
-    const upstream = http.request(destination, { method: req.method, headers }, response => {
-      res.writeHead(response.statusCode || 502, { ...response.headers, 'set-cookie': `access_token=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=1800` });
+    const upstream = http.request(destination, { method: targetMethod, headers }, response => {
+      // Cookies are shared across localhost ports. Keep this disposable identity
+      // inside the proxy instead of replacing a normal development login cookie.
+      const responseHeaders = {...response.headers};
+      delete responseHeaders['set-cookie'];
+      res.writeHead(response.statusCode || 502, responseHeaders);
       response.pipe(res);
     });
     upstream.setTimeout(180000, () => upstream.destroy());

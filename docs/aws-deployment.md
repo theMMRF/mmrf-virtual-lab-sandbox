@@ -88,7 +88,7 @@ kubectl --kubeconfig generated/aws-kubeconfig -n mmrf-synthetic \
 
 Open http://localhost:3080 in another terminal/browser. Run `python3
 scripts/smoke.py` and `npm ci && npx playwright install chromium && npm run test:ui`.
-Confirm the synthetic banner, 60 cases, a female cohort of 30, OncoMatrix,
+Confirm the synthetic banner, 1,000 cases, a female cohort of 500, OncoMatrix,
 repository files and the remaining tool acceptance checks. Save screenshots.
 The default chart exposes **ClusterIP only**, with no public frontend or ingress.
 Each participant can port-forward using their operator-approved cluster access.

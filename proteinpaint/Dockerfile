@@ -2,6 +2,8 @@ FROM ghcr.io/stjude/ppserver:2.214.0-b33a2fad7@sha256:4242772b10e43839f340f71208
 USER root
 WORKDIR /home/root/pp/app/active
 RUN npm pkg set type=module && npm install --save-exact @sjcrh/proteinpaint-server@2.216.0 @sjcrh/proteinpaint-shared@2.216.0
+COPY scripts/patch_proteinpaint.mjs /tmp/patch_proteinpaint.mjs
+RUN node /tmp/patch_proteinpaint.mjs node_modules/@sjcrh/proteinpaint-server
 COPY proteinpaint/serverconfig.json ./serverconfig.json
 COPY proteinpaint/genome.mjs ./genome/synthetic.mjs
 COPY proteinpaint/dataset.mjs ./dataset/synthetic.mjs

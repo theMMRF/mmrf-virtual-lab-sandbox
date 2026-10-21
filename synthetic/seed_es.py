@@ -52,7 +52,7 @@ def normalize_types(props):
     for key, value in props.items():
         if "properties" in value:
             normalize_types(value["properties"])
-        if key in ('project', 'transcript', 'annotation') and 'properties' in value:
+        if key in ('project', 'demographic', 'transcript', 'annotation') and 'properties' in value:
             value['type'] = 'object'
         if key == 'transcript' and 'gene' in value.get('properties', {}):
             value['properties']['gene']['type'] = 'object'
@@ -72,6 +72,25 @@ def arrays(doc, prefix=""):
             elif isinstance(value, dict):
                 result.update(arrays(value, name))
     return result
+
+
+def index_documents(index, docs):
+    """Bound bulk request memory as the synthetic cohort grows."""
+    batch, size = [], 0
+    for doc in docs:
+        row = json.dumps({"index": {"_index": index, "_id": doc["id"]}}) + "\n" + json.dumps(doc) + "\n"
+        batch.append(row)
+        size += len(row.encode())
+        if size >= 5_000_000 or len(batch) >= 100:
+            result = request('/_bulk', ''.join(batch), 'POST', 'application/x-ndjson')
+            if result.get('errors'):
+                raise RuntimeError(json.dumps(result))
+            batch, size = [], 0
+    if batch:
+        result = request('/_bulk', ''.join(batch), 'POST', 'application/x-ndjson')
+        if result.get('errors'):
+            raise RuntimeError(json.dumps(result))
+    request(f'/{index}/_refresh', method='POST')
 
 
 if __name__ == "__main__":
@@ -155,11 +174,8 @@ if __name__ == "__main__":
         except urllib.error.HTTPError as exc:
             if exc.code != 404:
                 raise
-            request(f"/{index}", {"settings": {"number_of_shards": 1, "number_of_replicas": 0, "mapping.nested_fields.limit": 200}, "mappings": {"properties": props}}, "PUT")
-        bulk = "".join(json.dumps({"index": {"_index": index, "_id": d["id"]}}) + "\n" + json.dumps(d) + "\n" for d in docs)
-        result = request("/_bulk?refresh=true", bulk, "POST", "application/x-ndjson")
-        if result.get("errors"):
-            raise RuntimeError(json.dumps(result))
+            request(f"/{index}", {"settings": {"number_of_shards": 1, "number_of_replicas": 0, "mapping.nested_fields.limit": 200, "mapping.nested_objects.limit": 100000}, "mappings": {"properties": props}}, "PUT")
+        index_documents(index, docs)
         config["indices"].append({"index": index, "type": kind})
         config["arrayConfig"].append({"index": index, "array": sorted(array_fields)})
         print(f"Seeded {len(docs)} synthetic {kind} records", flush=True)

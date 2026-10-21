@@ -13,21 +13,36 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
   demo fixture scalars replaced and the synthetic presentation flag enabled.
 - Clean Docker Compose build/start/health checks using real Elasticsearch, Guppy,
   Gen3 analysis and public ProteinPaint services. No Gen3 credential file.
-- HTTP integration: 60 cases, female cohort 30; identical case/sample membership
-  across Guppy and ProteinPaint; exact independently computed mutation counts;
-  fabricated FASTA download; synthetic reference sequence; single-cell UMAP with
-  80 fabricated cells; bulk UMAP; selected-cohort survival; differential expression pre-analysis, actual Wilcoxon
-  calculation and volcano rendering on random synthetic count matrices.
-- Isolated Playwright Chromium: create the female cohort through Cohort Builder,
-  carry it into OncoMatrix and check every gene count against the generated
-  variants, browse repository metadata, view bulk UMAP, render an 80-cell single-cell
-  UMAP, launch selected-cohort expression clustering, search TP53 in ProteinPaint,
-  and render Mutation Frequency. No failed local HTTP responses or uncaught page errors in this test.
-- Separate browser checks: expression clustering Submit renders a 60-sample,
-  five-gene matrix; ProteinPaint TP53 search renders 25 fabricated variants.
-- Helm lint and Kubernetes server-side dry-run against an isolated kind cluster.
-  Actual local chart workloads for frontend, identity, Guppy, analysis,
-  Elasticsearch and the seed watcher started successfully.
+- HTTP integration on the expanded default seed: 1,000 cases, female cohort 500,
+  2,132 case-level variants across six genes, and 80,000 generated single cells.
+  Case/sample membership and independently computed mutation totals agree across
+  Guppy, analysis and ProteinPaint. Fabricated FASTA, reference sequence, survival,
+  bulk expression, actual Wilcoxon differential expression and volcano rendering pass.
+- Male/white and female/black demographic cohorts each contain 167 cases; both
+  return full survival curves. All six gene-survival comparisons return the exact
+  mutated and unmutated case sets. The synthetic demographic mapping matches
+  the public analysis service's object-field survival queries. Generator checks
+  also require at least ten mutated
+  and ten unmutated cases for every fixture gene in each sex/race combination.
+- Single-cell meta-analysis API returns exactly 40,000 cells for a 500-case female
+  cohort, including MYC expression coloring. Actual pseudobulk differential
+  expression runs against totals derived from those same generated cells.
+- Uncolored bulk UMAP is checked against exact cohort membership and an empty
+  cohort. A narrow version-checked correction to the public ProteinPaint server
+  is required for this mode; see component-inventory.md.
+- The curated Correlation chart allowlist and all MYC search examples are checked
+  through the public API. Expanded GET cohort queries work without HTTP header/
+  request-line overflow. API responses do not set localhost login cookies.
+- Isolated Chromium creates a female/black cohort of 167 cases and verifies
+  exact OncoMatrix counts, cohort-scoped repository files and bulk UMAP, a
+  13,360-cell Meta analysis, the two visible Correlation buttons, Clinical Data
+  Analysis survival, expression clustering, c-Myc search (57 variants), Genome
+  Browser (52 KRAS-region variants), and Mutation Frequency survival. No failed
+  local HTTP responses or uncaught page errors. A pre-existing localhost login
+  cookie remains unchanged. Screenshots are saved under ignored screenshots/.
+- Helm lint and rendering pass with the expanded-fixture configuration. Earlier
+  Kubernetes server-side dry-run and startup tests used a separate kind cluster;
+  frontend, identity, Guppy, analysis, Elasticsearch and the seed watcher started.
 - Terraform formatting, validate and four mocked provider tests: isolated
   infrastructure, wrong-account role rejection, unrestricted/IPv6 API CIDR rejection.
 - Gitleaks scan of publication files: no leaks found. Generated data, source

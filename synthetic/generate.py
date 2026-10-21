@@ -12,6 +12,7 @@ GENES = [
     ("TP53", "ENSG00000141510", "chr17", 30000),
     ("BRAF", "ENSG00000157764", "chr7", 40000),
     ("DIS3", "ENSG00000150907", "chr13", 50000),
+    ("MYC", "ENSG00000136997", "chr8", 60000),
 ]
 COHORT_FIELDS = json.loads((Path(__file__).resolve().parents[1] / 'config/cohort-fields.json').read_text())
 
@@ -32,7 +33,7 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n")
 
 
-def generate(out, count=60, seed=42):
+def generate(out, count=1000, seed=42):
     if not 10 <= count <= 1000:
         raise ValueError("Choose between 10 and 1000 synthetic cases")
     out = Path(out)
@@ -51,8 +52,9 @@ def generate(out, count=60, seed=42):
                   "tumor_descriptor": "Primary", "specimen_type": "Bone Marrow", "preservation_method": "Frozen"}
         case = {"id": cid, "case_id": cid, "submitter_id": cid, "project_id": "SYNTHETIC-MM", "project": project,
                 "batch_id": "SYNTHETIC", "primary_site": "Bone Marrow", "disease_type": "Multiple Myeloma",
-                "index_date": "Diagnosis", "gender": rng.choice(["male", "female"]), "race": rng.choice(["white", "black or african american", "asian"]),
-                "ethnicity": rng.choice(["hispanic or latino", "not hispanic or latino"]), "age_at_index": age,
+                "index_date": "Diagnosis", "gender": ["female", "male"][(number - 1) % 2],
+                "race": ["white", "black or african american", "asian"][((number - 1) // 2) % 3],
+                "ethnicity": ["hispanic or latino", "not hispanic or latino"][((number - 1) // 6) % 2], "age_at_index": age,
                 "age_at_diagnosis": age * 365, "days_to_birth": -age * 365, "vital_status": vital,
                 "days_to_death": days if vital == "Dead" else None, "days_to_last_follow_up": days,
                 "primary_diagnosis": "Multiple myeloma", "therapeutic_agents": rng.choice(["Synthetic regimen A", "Synthetic regimen B"]),
@@ -88,13 +90,13 @@ def generate(out, count=60, seed=42):
             if rng.random() < 0.35:
                 variants.append({"case_id": case["case_id"], "sample_id": case["sample_id"], "sample": number,
                                  "gene_id": gid, "symbol": symbol, "chr": chrom, "pos": start + number,
-                                 "ref": "A", "alt": "T", "class": "M", "mname": f"p.X{number}Y"})
+                                 "ref": "A", "alt": "T", "class": "M", "mname": f"p.A{(number + 2) // 3}T"})
     for case, file in zip(records, files):
         case['files'] = [{key: value for key, value in file.items() if key != 'cases'}]
     write_json(out / "cases.json", records)
     write_json(out / "files.json", files)
     write_json(out / "variants.json", variants)
-    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 1, "seed": seed,
+    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 2, "seed": seed,
                                          "cases": count, "source": "Seeded pseudorandom generation; no patient inputs"})
     make_termdb(out, records)
     make_gene_db(out)
@@ -113,9 +115,11 @@ def generate(out, count=60, seed=42):
                 fasta.write(sequence[start:start + 80] + '\n')
             fai.write(f'{chrom}\t100000\t{offset}\t80\t81\n')
     with (out / 'bulk-umap.tsv').open('w') as scatter:
-        scatter.write('sample\tx\ty\n')
-        for case in records:
-            scatter.write(f"{case['sample_id']}\t{rng.gauss(0, 2):.4f}\t{rng.gauss(0, 2):.4f}\n")
+        scatter.write('sample\tlabel\tx\ty\n')
+        for index, case in enumerate(records):
+            # Artificial islands make zoom/selection useful; they encode no clinical relationship.
+            x, y = rng.gauss(index % 3 * 4, 1), rng.gauss(index % 2 * 4, 1)
+            scatter.write(f"{case['sample_id']}\tSynthetic\t{x:.4f}\t{y:.4f}\n")
     return records, files, variants
 
 
@@ -183,6 +187,10 @@ CREATE TABLE codingGenes (name TEXT COLLATE NOCASE);
                  "exon": [[start, start + 2000]], "coding": [[start, start + 2000]], "isdefault": True}
         db.execute("INSERT INTO genes VALUES (?,?,?,?)", (symbol, gid, 1, json.dumps(model)))
         db.execute("INSERT INTO genealias VALUES (?,?)", (gid, symbol))
+        if symbol == 'MYC':
+            for alias in ('c-Myc', 'ENST00000621592', 'NM_002467', 'NM_002467.1'):
+                db.execute("INSERT INTO genealias VALUES (?,?)", (alias, symbol))
+            db.execute("INSERT INTO refseq2ensembl VALUES (?,?)", (gid, 'NM_002467'))
         db.execute("INSERT INTO gene2coord VALUES (?,?,?,?)", (symbol, chrom, start, start + 2000))
         db.execute("INSERT INTO gene2canonicalisoform VALUES (?,?)", (symbol, gid))
         db.execute("INSERT INTO codingGenes VALUES (?)", (symbol,))
@@ -207,7 +215,7 @@ def make_vcf(out, cases, variants):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="generated")
-    parser.add_argument("--cases", type=int, default=60)
+    parser.add_argument("--cases", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     generate(args.out, args.cases, args.seed)

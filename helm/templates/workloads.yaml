@@ -73,7 +73,7 @@ spec:
           {{- else if eq $name "elasticsearch" }}
             - {name: discovery.type, value: single-node}
             - {name: xpack.security.enabled, value: 'false'}
-            - {name: ES_JAVA_OPTS, value: '-Xms512m -Xmx512m'}
+            - {name: ES_JAVA_OPTS, value: '-Xms1g -Xmx1g'}
           readinessProbe:
             httpGet: {path: /_cluster/health, port: 9200}
             initialDelaySeconds: 10

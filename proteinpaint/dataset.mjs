@@ -31,6 +31,8 @@ export default function (_common, refs) {
   return {
     isMds3: true,
     label: 'Synthetic MMRF',
+    // Public ProteinPaint presentation API: use the curated Virtual Lab menu.
+    commonCharts: {summaryInput: true, survival: true, DA: true},
     cohort: {
       db: { file: 'termdb.sqlite' },
       termdb: {
@@ -40,8 +42,8 @@ export default function (_common, refs) {
         matrix: { appName: 'OncoMatrix' },
         convertSampleId: { get: inputs => Object.fromEntries(inputs.map(sample => [sample, sampleToCase.get(sample)])) },
       },
-      scatterplots: { plots: [{name: 'Bulk RNA-seq UMAP', description: 'Random synthetic coordinates; no biological structure', dimension: 2,
-        file: 'bulk-umap.tsv', colorTW: {id: 'gender'}, shapeTW: {id: 'vital_status'}}] },
+      scatterplots: { plots: [{name: 'Bulk RNA-seq UMAP', description: 'Artificial synthetic coordinates; no biological structure', dimension: 2,
+        file: 'bulk-umap.tsv', coordsColumns: {x: 2, y: 3}, settings: {size: 2}}] },
     },
     queries: {
       topMutatedGenes: {
@@ -63,10 +65,28 @@ export default function (_common, refs) {
       rnaseqGeneCount: {file: 'counts.h5'},
       topVariablyExpressedGenes: {},
       singleCell: {
-        samples: {sampleColumns: [{termid: 'gender'}], extraSampleTabLabel: 'Synthetic sample'},
-        data: {sameLegend: true, plots: [{name: 'UMAP', folder: 'singlecell/umap', fileSuffix: '_umap.txt',
-          colorColumns: [{index: 3, name: 'Synthetic cell type'}], coordsColumns: {x: 1, y: 2}, selected: true}]},
-        geneExpression: {folder: 'singlecell/expression'},
+        samples: {},
+        data: {
+          settings: {svgw: 1000, svgh: 1000, sampleSizeThree: 0.01},
+          plots: [{name: 'Meta analysis', folder: 'singlecell/meta', sampleId: 'combined', fileSuffix: '.tsv', isMetaResult: true,
+            colorColumns: [{index: 5, name: 'Lineage Group'}, {index: 2, name: 'Subcluster'},
+              {index: 1, name: 'Sample'}, {index: 3, name: 'Subcluster Compartment'}, {index: 4, name: 'Cell Type'}],
+            cellTypeColumn: {index: 5},
+            cellType2label: new Map(['Plasma', 'T', 'B', 'Myeloid'].map(key => [key, `Synthetic ${key} cells`])),
+            coordsColumns: {x: 6, y: 7}}],
+          addCellTypeFractionTerms(terms, ds) {
+            // Native SQLite is read-only at runtime. Keep computed bin metadata in memory;
+            // the assay generator already registered the dictionary entries and annotations.
+            const nativeLookup = ds.cohort.termdb.q.termjsonByOneid;
+            const computed = new Map(terms.map(term => [term.id, {...term, isleaf: true}]));
+            ds.cohort.termdb.q.termjsonByOneid = id => computed.has(id) ? structuredClone(computed.get(id)) : nativeLookup(id);
+          },
+        },
+        geneExpression: {folder: 'singlecell/expression', unit: 'log1p'},
+        pseudobulk: {geneExpression: {'Cell Type': {folder: 'singlecell/pseudobulk', meanExt: '.mean.h5',
+          percentExt: '.percent.h5', totalExt: '.total.h5',
+          categories: Object.fromEntries(['Plasma', 'T', 'B', 'Myeloid'].map(key => [key, {label: `Synthetic ${key} cells`}])),
+        }}},
       },
     },
   };

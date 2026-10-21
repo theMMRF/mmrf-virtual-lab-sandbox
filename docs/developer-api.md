@@ -13,7 +13,7 @@ curl -fsS http://localhost:3080/guppy/graphql \
   -d '{"query":"query($filter:JSON){CaseCentric_case_centric(first:1000,filter:$filter){case_id samples{sample_id}}}","variables":{"filter":{"in":{"demographic.gender":["female"]}}}}'
 ```
 
-The default seed returns 30 of 60 cases. Cohort creation/naming and the currently
+The default seed returns 500 of 1,000 cases. Cohort creation/naming and the currently
 selected cohort are managed by the existing frontend's browser state. A language
 interface embedded in that frontend should use its cohort actions/selectors;
 `/analysis/v0/cohorts/query` is a query endpoint, not a new cohort-storage API.
@@ -28,10 +28,11 @@ curl -fsS http://localhost:3080/protein-paint/termdb/topMutatedGenes \
 ```
 
 The gateway translates `filter0` into native ProteinPaint sample filters and
-intersects an existing native filter. It also translates sample-group cohort
+intersects an existing native filter. Expanded GET cohort queries become JSON
+POSTs to avoid request-line limits; this remains a read operation. It also translates sample-group cohort
 filters for differential expression. The generated `SYNTH-SAMPLE-*` names map
 back to `SYNTH-CASE-*` using ProteinPaint's `convertSampleId` termdb action.
-Synthetic gene search supports KRAS, NRAS, TP53, BRAF and DIS3. The `hg38` key
+Synthetic gene search supports KRAS, NRAS, TP53, BRAF, DIS3 and MYC. The `hg38` key
 is a compatibility key for a fabricated reference, not real genome data.
 
 ## Query files and survival
