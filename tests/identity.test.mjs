@@ -32,6 +32,11 @@ test('cohort bridge keeps nested case selection and ProteinPaint filters in inte
   assert.equal('filter0' in result, false);
   assert.throws(() => matches(cases[0], { unknown: {} }), /Unsupported/);
   assert.throws(() => matches(cases[0], { in: { nonexistent: ['x'] } }), /Unsupported/);
+  assert.equal(matches({age: null}, {'>=': {age: 10}}), false);
+  assert.equal(bridgePayload({filter0: expression, filter: {type: 'tvslst', in: true, lst: []}}, cases).filter.lst.length, 1);
+  assert.equal(bridgePayload({filter0: {'>': {age: 10}}}, [{age: 50}, {}]).filter.lst[0].tvs.term.values.synthetic.list.length, 1);
+  const single = {type: 'tvs', tvs: {term: {type: 'categorical', id: 'gender'}, values: [{key: 'female'}]}};
+  assert.equal(bridgePayload({filter0: expression, filter: single}, cases).filter.lst[1], single);
   const empty = bridgePayload({ filter0: { in: { gender: ['absent'] } } }, cases);
   assert.deepEqual(empty.filter.lst[0].tvs.term.values.synthetic.list, []);
 });

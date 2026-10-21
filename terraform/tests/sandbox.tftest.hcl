@@ -33,3 +33,9 @@ run "reject_open_api" {
   variables { operator_cidrs = ["0.0.0.0/0"] }
   expect_failures = [var.operator_cidrs]
 }
+
+run "reject_ipv6_api" {
+  command = plan
+  variables { operator_cidrs = ["2001:db8::/32"] }
+  expect_failures = [var.operator_cidrs]
+}

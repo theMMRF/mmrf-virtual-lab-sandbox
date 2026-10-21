@@ -23,5 +23,6 @@ kubectl --kubeconfig generated/kubeconfig -n mmrf-synthetic \
 Test with `python3 scripts/smoke.py --origin http://127.0.0.1:3081` and
 `SANDBOX_ORIGIN=http://127.0.0.1:3081 npm run test:ui`. Every command explicitly
 uses the isolated kubeconfig. Delete only this test cluster with `kind delete
-cluster --name mmrf-sandbox`. Default kind networking does not enforce the chart's
-NetworkPolicy; enforcement is an AWS acceptance check.
+cluster --name mmrf-sandbox --kubeconfig generated/kubeconfig`. NetworkPolicy
+support depends on the kind version and CNI; verify enforcement rather than
+assuming it. AWS enforcement remains a separate acceptance check.

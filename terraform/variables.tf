@@ -30,7 +30,7 @@ variable "operator_cidrs" {
   description = "Operator/VPN egress CIDRs allowed to reach the EKS API. Workload services remain ClusterIP."
   type        = list(string)
   validation {
-    condition     = length(var.operator_cidrs) > 0 && alltrue([for c in var.operator_cidrs : can(cidrhost(c, 0)) && try(tonumber(split("/", c)[1]) >= 24, false)])
+    condition     = length(var.operator_cidrs) > 0 && alltrue([for c in var.operator_cidrs : can(cidrnetmask(c)) && try(tonumber(split("/", c)[1]) >= 24 && tonumber(split("/", c)[1]) <= 32, false)])
     error_message = "Supply IPv4 CIDRs with /24 or narrower masks; unrestricted API access is not supported."
   }
 }

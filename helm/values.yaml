@@ -7,6 +7,7 @@ images:
   identity: mmrf-sandbox/identity:local
   seed: mmrf-sandbox/seed:local
   elasticsearch: docker.elastic.co/elasticsearch/elasticsearch:7.17.29@sha256:3f55a7f6f29b95345dc33808d6e914f81d125d4ca90a414e26c81a3521400980
+waitImage: curlimages/curl:8.12.1
 imagePullPolicy: IfNotPresent
 networkPolicy:
   enabled: true

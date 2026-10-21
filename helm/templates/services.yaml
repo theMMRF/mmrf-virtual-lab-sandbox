@@ -1,4 +1,4 @@
-{{- range $name, $port := dict "frontend" 3000 "guppy" 80 "analysis" 8000 "proteinpaint" 3000 "identity" 8080 "elasticsearch" 9200 }}
+{{- range $name, $port := dict "frontend" 3000 "guppy" 8080 "analysis" 8000 "proteinpaint" 3000 "identity" 8080 "elasticsearch" 9200 }}
 ---
 apiVersion: v1
 kind: Service

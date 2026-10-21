@@ -89,6 +89,8 @@ def generate(out, count=60, seed=42):
                 variants.append({"case_id": case["case_id"], "sample_id": case["sample_id"], "sample": number,
                                  "gene_id": gid, "symbol": symbol, "chr": chrom, "pos": start + number,
                                  "ref": "A", "alt": "T", "class": "M", "mname": f"p.X{number}Y"})
+    for case, file in zip(records, files):
+        case['files'] = [{key: value for key, value in file.items() if key != 'cases'}]
     write_json(out / "cases.json", records)
     write_json(out / "files.json", files)
     write_json(out / "variants.json", variants)

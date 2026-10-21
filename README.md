@@ -100,6 +100,9 @@ performed by this project preparation workflow.
 See [component inventory](docs/component-inventory.md) for public/private
 dependencies and [verification](docs/verification.md) for the actual test record.
 
+See [developer API examples](docs/developer-api.md) for cohort selection,
+ProteinPaint, file search/download and local service development.
+
 ## Hackathon boundary
 
 This environment supports building a natural-language interface against existing

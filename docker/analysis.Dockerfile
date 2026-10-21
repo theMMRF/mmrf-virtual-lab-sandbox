@@ -6,4 +6,6 @@ RUN poetry config virtualenvs.create false && poetry install --only main --no-ro
 COPY gen3analysis ./gen3analysis
 COPY README.md ./README.md
 RUN poetry install --only main --no-interaction
+RUN useradd --system --create-home app
+USER app
 CMD ["uvicorn", "gen3analysis.main:app_instance", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,6 +1,7 @@
 # Operator-controlled AWS deployment
 
-No AWS account was accessed during preparation. The Terraform validation below is
+No direct AWS access or deployment test was performed during preparation.
+Existing automated preview-image builds may run separately. The Terraform validation below is
 offline apart from downloading providers; mock tests make no AWS API requests.
 The real account test is a separate operator acceptance gate.
 
@@ -70,6 +71,8 @@ docker push YOUR_ECR_FRONTEND_URL:UNIQUE_BUILD_TAG
 Use a new immutable tag per build. Create an ignored
 `generated/aws-values.yaml` with all six `images` overrides pointing to those
 published URLs/tags. Leave the public Elasticsearch image pinned as supplied.
+If registry access is restricted, override `waitImage` and the Elasticsearch
+image with operator-approved mirrors; preload these images too for offline kind.
 For reproducibility record the resolved image digests and preferably deploy them
 with `URL@sha256:...`. Never use real deployment images or private ppmmrf images.
 
@@ -94,7 +97,12 @@ The synthetic identity is deliberately shared; this is not production auth.
 The chart installs a namespace-scoped NetworkPolicy. EKS VPC CNI network policy
 support is enabled by Terraform; the operator must verify enforcement in the
 actual cluster, including denied external egress from application pods. The local
-kind default networking does not demonstrate enforcement. The frontend should
+kind test did not demonstrate enforcement. VPC CNI uses standard startup enforcement: new pods can briefly have unrestricted
+network access while policies attach. This synthetic-only account contains no
+patient data or real credentials. Strict startup enforcement requires a tested
+CoreDNS policy/bootstrap sequence before enabling it; it is not claimed here.
+See the [AWS network-policy documentation](https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy-configure.html).
+The frontend should
 still be unable to route sandbox requests to production services.
 
 ## Reset and teardown

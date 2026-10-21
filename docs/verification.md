@@ -1,7 +1,7 @@
 # Verification record
 
-Checked 2026-10-21 on Apple Silicon with Docker Desktop. No AWS profile,
-credentials, account, APIs, Terraform plan or apply were used. Real account
+Checked 2026-10-21 on Apple Silicon with Docker Desktop. Local checks did not mount AWS profiles/credentials, call AWS APIs, or run a real
+Terraform plan/apply. Existing automatic preview-image builds are separate. Real account
 provisioning is explicitly an operator acceptance gate in the AWS runbook.
 
 ## Passed locally
@@ -28,8 +28,8 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
 - Helm lint and Kubernetes server-side dry-run against an isolated kind cluster.
   Actual local chart workloads for frontend, identity, Guppy, analysis,
   Elasticsearch and the seed watcher started successfully.
-- Terraform formatting, validate and three mocked provider tests: isolated
-  infrastructure, wrong-account role rejection, unrestricted API CIDR rejection.
+- Terraform formatting, validate and four mocked provider tests: isolated
+  infrastructure, wrong-account role rejection, unrestricted/IPv6 API CIDR rejection.
 - Gitleaks scan of publication files: no leaks found. Generated data, source
   contexts, node_modules, state, plans and kubeconfigs are excluded from Git.
 

@@ -103,6 +103,16 @@ survival = call('/analysis/v0/survival/', {'filters': [cohort_filter]})
 assert survival['results']
 assert {d['id'] for d in survival['results'][0]['donors']} == {c['case_id'] for c in female}
 print('PASS: real analysis service returns survival for the selected synthetic cohort')
+for expression, selected in [
+    ({'>=': {'demographic.days_to_death': 1000}}, [c for c in cases if c['days_to_death'] is not None and c['days_to_death'] >= 1000]),
+    ({'in': {'files.data_format': ['FASTA']}}, cases),
+]:
+    result = call('/guppy/graphql', {'query': query if 'CaseCentric' in query else 'query($filter:JSON){CaseCentric_case_centric(first:1000,filter:$filter){case_id}}', 'variables': {'filter': expression}})
+    assert {c['case_id'] for c in result['data']['CaseCentric_case_centric']} == {c['case_id'] for c in selected}
+    result = call('/protein-paint/termdb/singlecellSamples', {'genome': 'hg38', 'dslabel': 'MMRF', 'filter0': expression})
+    assert {s['sample'] for s in result['samples']} == {c['sample_id'] for c in selected}
+print('PASS: nullable clinical and file-facet cohorts match across real Guppy and ProteinPaint')
+
 groups = [{'name': gender, 'values': [{'sampleId': i + 1} for i, c in enumerate(cases) if c['gender'] == gender]} for gender in ('female', 'male')]
 de = {'genome': 'hg38', 'dslabel': 'MMRF', 'samplelst': {'groups': groups}, 'method': 'wilcoxon',
       'min_count': 10, 'min_total_count': 15, 'cpm_cutoff': 0,

@@ -11,6 +11,6 @@ WORKDIR /app
 COPY --from=build /app/dist/server ./dist/server
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
-ENV GUPPY_PORT=80
+ENV GUPPY_PORT=8080
 USER node
 CMD ["node", "dist/server/server.js"]

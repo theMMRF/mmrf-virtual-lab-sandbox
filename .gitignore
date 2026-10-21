@@ -11,3 +11,5 @@ screenshots/
 *.auto.tfvars
 playwright-report/
 test-results/
+
+.DS_Store

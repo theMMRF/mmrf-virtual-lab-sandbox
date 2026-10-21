@@ -25,12 +25,12 @@ services:
       GEN3_ES_ENDPOINT: http://elasticsearch:9200
       GEN3_ARBORIST_ENDPOINT: http://identity:8080
       GUPPY_CONFIG_FILEPATH: /data/guppy.json
-      GUPPY_PORT: '80'
+      GUPPY_PORT: '8080'
       METADATA_AUTH_RESOURCE: /mmrf_metadata
       TIER_ACCESS_LEVEL: private
     volumes: ['./generated:/data:ro']
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://localhost/_status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: [CMD, node, -e, "fetch('http://localhost:8080/_status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 5s
       retries: 30
     depends_on:
@@ -53,7 +53,7 @@ services:
       CASE_INDEX: case
       FILE_INDEX: file
       ARBORIST_URL: http://identity:8080
-      GUPPY_URL: http://guppy
+      GUPPY_URL: http://guppy:8080
       DEPLOYMENT_TYPE: sandbox
       HOSTNAME: http://identity:8080
       ENABLED_ROUTES: basic,cohort,cohorts,genomic,cases,files,survival,compare,gene_expression

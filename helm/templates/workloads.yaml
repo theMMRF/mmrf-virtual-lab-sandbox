@@ -14,12 +14,16 @@ spec:
   template:
     metadata:
       labels: {app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/instance: {{ $.Release.Name }}}
+      {{- if eq $name "guppy" }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") $ | sha256sum }}
+      {{- end }}
     spec:
       automountServiceAccountToken: false
       {{- if or (eq $name "guppy") (eq $name "analysis") }}
       initContainers:
         - name: wait-for-synthetic-data
-          image: curlimages/curl:8.12.1
+          image: {{ $.Values.waitImage | quote }}
           command: [sh, -c, 'until curl -fsS http://elasticsearch:9200/sandbox_seed_complete/_count; do sleep 3; done']
       {{- end }}
       containers:
@@ -41,7 +45,7 @@ spec:
             - {name: GEN3_ES_ENDPOINT, value: 'http://elasticsearch:9200'}
             - {name: GEN3_ARBORIST_ENDPOINT, value: 'http://identity:8080'}
             - {name: GUPPY_CONFIG_FILEPATH, value: '/data/guppy.json'}
-            - {name: GUPPY_PORT, value: '80'}
+            - {name: GUPPY_PORT, value: '8080'}
             - {name: METADATA_AUTH_RESOURCE, value: '/mmrf_metadata'}
             - {name: TIER_ACCESS_LEVEL, value: private}
           volumeMounts:
@@ -58,7 +62,7 @@ spec:
             - {name: ES_SSM_OCCURRENCE_INDEX, value: sandbox_ssm_occurrence_centric}
             - {name: ES_CNV_CENTRIC_INDEX, value: sandbox_cnv_centric}
             - {name: ES_CNV_OCCURRENCE_INDEX, value: sandbox_cnv_occurrence_centric}
-            - {name: GUPPY_URL, value: 'http://guppy'}
+            - {name: GUPPY_URL, value: 'http://guppy:8080'}
             - {name: ARBORIST_URL, value: 'http://identity:8080'}
             - {name: HOSTNAME, value: 'http://identity:8080'}
             - {name: DEPLOYMENT_TYPE, value: sandbox}
@@ -80,9 +84,14 @@ spec:
           {{- end }}
           {{- if ne $name "elasticsearch" }}
           readinessProbe:
+            {{- if eq $name "proteinpaint" }}
+            exec:
+              command: [node, -e, "fetch('http://localhost:3000/healthcheck').then(r=>r.json()).then(v=>{if(v.dsSummary?.done!==1)process.exit(1)}).catch(()=>process.exit(1))"]
+            {{- else }}
             httpGet:
               path: {{ index (dict "frontend" "/Login" "guppy" "/_status" "analysis" "/_status" "proteinpaint" "/healthcheck" "identity" "/sandbox/status") $name }}
-              port: {{ index (dict "frontend" 3000 "guppy" 80 "analysis" 8000 "proteinpaint" 3000 "identity" 8080) $name }}
+              port: {{ index (dict "frontend" 3000 "guppy" 8080 "analysis" 8000 "proteinpaint" 3000 "identity" 8080) $name }}
+            {{- end }}
             initialDelaySeconds: 5
             periodSeconds: 5
           {{- end }}

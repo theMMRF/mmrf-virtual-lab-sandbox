@@ -16,7 +16,7 @@ const terms = { id: 1, version: 'synthetic-v1', effective_at: '2026-01-01T00:00:
   terms_content: 'Synthetic demonstration data only. No patient data or clinical interpretation.', content_format: 'plain_text' };
 const targets = {
   frontend: process.env.FRONTEND_ORIGIN || 'http://frontend:3000',
-  guppy: process.env.GUPPY_ORIGIN || 'http://guppy:80',
+  guppy: process.env.GUPPY_ORIGIN || 'http://guppy:8080',
   analysis: process.env.ANALYSIS_ORIGIN || 'http://analysis:8000',
   proteinpaint: process.env.PROTEINPAINT_ORIGIN || 'http://proteinpaint:3000',
 };
