@@ -107,3 +107,17 @@ Run `scripts/start.sh`, then `npm ci`, `npx playwright install chromium`, and
 `screenshots/`. Use a fresh search volume when changing the fixture seed/count:
 `docker compose down --volumes`, regenerate, rebuild fixture-bearing images and
 start again. The seeder rejects mismatched fixture fingerprints.
+
+## HTTPS EKS launcher follow-up
+
+The separate AWS-launcher change adds an operator-run CLI and optional Terraform
+CloudFront VPC origin/private ALB. Local validation covers five mocked Terraform
+plans, normal and hosted Helm rendering, Python launcher/account/state/deletion
+regressions, entry-point authorization and HTTPS-origin unit checks. The full
+API and Chromium suites also pass through the authenticated entry on a loopback
+port. That local proxy test uses HTTP on loopback, not a real CloudFront TLS
+connection. The origin unit test separately verifies HTTPS download URLs.
+No AWS CLI, real Terraform plan/apply, ECR publication or remote HTTPS smoke
+command has been run by the preparation agent. Provider mocks do not establish
+that EKS boots, the ALB target is healthy or CloudFront works in Sandbox One.
+The launcher performs those live acceptance checks only when the operator runs it.

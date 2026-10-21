@@ -1,0 +1,63 @@
+{{- if .Values.access.enabled }}
+{{- if not .Values.networkPolicy.enabled }}{{ fail "Hosted access requires networkPolicy.enabled" }}{{- end }}
+{{- if ne (len .Values.access.originCidrs) 2 }}{{ fail "Hosted access requires the two Terraform origin subnet CIDRs" }}{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: access, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: access, app.kubernetes.io/instance: {{ .Release.Name }}}
+      annotations:
+        checksum/access-credential: {{ .Values.access.credentialRevision | quote }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 1000}
+      containers:
+        - name: access
+          image: {{ .Values.images.identity | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [node, identity/access.mjs]
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 256Mi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          env:
+            - {name: PORT, value: '8080'}
+            - {name: SANDBOX_PUBLIC_ORIGIN, value: {{ required "access.publicOrigin is required" .Values.access.publicOrigin | quote }}}
+            - name: SANDBOX_ACCESS_USERNAME
+              valueFrom: {secretKeyRef: {name: {{ .Values.access.existingSecret }}, key: username}}
+            - name: SANDBOX_ACCESS_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ .Values.access.existingSecret }}, key: password}}
+          readinessProbe:
+            httpGet: {path: /_status, port: 8080}
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: access
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector: {app.kubernetes.io/name: access, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports: [{name: http, port: 8080, targetPort: 8080, nodePort: 30080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: access-from-private-alb
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: access, app.kubernetes.io/instance: {{ .Release.Name }}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range .Values.access.originCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 8080}]
+{{- end }}

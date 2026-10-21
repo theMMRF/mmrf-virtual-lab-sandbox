@@ -36,5 +36,19 @@ variable "operator_cidrs" {
 }
 variable "kubernetes_version" {
   type    = string
-  default = "1.34"
+  default = "1.35"
+}
+variable "vpc_cidr" {
+  description = "Fresh isolated VPC; existing LZA resources are never imported or modified."
+  type        = string
+  default     = "10.86.0.0/16"
+  validation {
+    condition     = can(cidrnetmask(var.vpc_cidr)) && try(tonumber(split("/", var.vpc_cidr)[1]) == 16, false)
+    error_message = "Use an IPv4 /16 for the new isolated VPC."
+  }
+}
+variable "enable_https" {
+  description = "Add a private ALB and CloudFront HTTPS entry point; Helm must enable the password-protected access service."
+  type        = bool
+  default     = false
 }

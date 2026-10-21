@@ -100,8 +100,13 @@ storage; all developers share the synthetic identity.
 
 ## Deployment and handoff
 
-See [AWS deployment](docs/aws-deployment.md) for operator-controlled provisioning,
-image publishing, Helm deployment, checks, and teardown. Local Kubernetes testing
+See [AWS deployment](docs/aws-deployment.md) for the operator-run EKS launcher:
+`init`, `check`, `build`, `deploy`, `status`, and `destroy`. It provisions a
+CloudFront HTTPS hostname in front of a private ALB and a password-protected
+entry, without requiring a domain or certificate. AWS image builds use separate
+local tags; normal Compose behavior stays unchanged. The launcher automates
+image publication, dedicated kubeconfig/Secret creation, Helm deployment and
+state-owned teardown. Only the operator runs its AWS commands. Local Kubernetes testing
 uses the same chart with a separate kind cluster and kubeconfig; see
 [local Kubernetes](docs/local-kubernetes.md) for the amd64 requirement.
 

@@ -11,6 +11,13 @@ waitImage: curlimages/curl:8.12.1
 imagePullPolicy: IfNotPresent
 networkPolicy:
   enabled: true
+access:
+  enabled: false
+  publicOrigin: ''
+  existingSecret: sandbox-access
+  credentialRevision: ''
+  # The two private ALB subnet CIDRs, supplied by Terraform outputs.
+  originCidrs: []
 resources:
   elasticsearch:
     requests: {cpu: 250m, memory: 1Gi}

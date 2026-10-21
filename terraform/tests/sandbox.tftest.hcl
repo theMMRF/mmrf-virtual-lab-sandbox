@@ -39,3 +39,28 @@ run "reject_ipv6_api" {
   variables { operator_cidrs = ["2001:db8::/32"] }
   expect_failures = [var.operator_cidrs]
 }
+
+run "private_https_entry" {
+  command = plan
+  variables { enable_https = true }
+  assert {
+    condition     = aws_lb.sandbox[0].internal && length(aws_subnet.origin) == 2
+    error_message = "The ALB must stay private in dedicated origin subnets."
+  }
+  assert {
+    condition     = aws_cloudfront_distribution.sandbox[0].default_cache_behavior[0].viewer_protocol_policy == "https-only"
+    error_message = "The public endpoint must refuse plain HTTP."
+  }
+  assert {
+    condition     = aws_cloudfront_distribution.sandbox[0].viewer_certificate[0].cloudfront_default_certificate
+    error_message = "No operator-provided domain or certificate may be required."
+  }
+  assert {
+    condition     = aws_cloudfront_distribution.sandbox[0].default_cache_behavior[0].cache_policy_id == "413f160f-6d90-4db8-a6e7-74cbb926abc1"
+    error_message = "Do not cache credentials, API responses or cohort-dependent results."
+  }
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.node_entry[0].from_port == 30080 && aws_vpc_security_group_ingress_rule.node_entry[0].to_port == 30080 && aws_vpc_security_group_ingress_rule.node_entry[0].cidr_ipv4 == null
+    error_message = "The NodePort rule must use the ALB security group, not a public CIDR."
+  }
+}

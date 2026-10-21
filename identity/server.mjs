@@ -4,9 +4,11 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createIdentity } from './token.mjs';
 import { bridgePayload } from './cohorts.mjs';
+import { publicOrigin } from './access.mjs';
 
 if (process.env.SYNTHETIC_SANDBOX !== '1') throw new Error('This service requires SYNTHETIC_SANDBOX=1');
 const identity = createIdentity();
+const configuredOrigin = process.env.SANDBOX_PUBLIC_ORIGIN ? publicOrigin(process.env.SANDBOX_PUBLIC_ORIGIN) : null;
 const dataDir = resolve(process.env.DATA_DIR || fileURLToPath(new URL('../generated/', import.meta.url)));
 const cases = JSON.parse(await readFile(join(dataDir, 'cases.json')));
 const files = JSON.parse(await readFile(join(dataDir, 'files.json')));
@@ -59,7 +61,7 @@ const server = http.createServer(async (req, res) => {
       const file = files.find(f => path === `/index/index/${f.file_id}`);
       if (!file) return json(res, {error: 'Unknown synthetic file'}, 404);
       return json(res, {did: file.file_id, file_name: file.file_name, size: file.file_size, hashes: {md5: file.md5sum},
-        urls: [`http://${req.headers.host}/sandbox/files/${file.file_id}`], acl: file.acl});
+        urls: [`${configuredOrigin || `http://${req.headers.host}`}/sandbox/files/${file.file_id}`], acl: file.acl});
     }
     if (path.startsWith('/user/data/download/')) {
       const file = files.find(f => path === `/user/data/download/${f.file_id}`);
@@ -67,7 +69,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(302, {location: `/sandbox/files/${file.file_id}`, 'cache-control': 'no-store'});
         return res.end();
       }
-      return file ? json(res, {url: `http://${req.headers.host}/sandbox/files/${file.file_id}`}) : json(res, {error: 'Unknown synthetic file'}, 404);
+      return file ? json(res, {url: `${configuredOrigin || `http://${req.headers.host}`}/sandbox/files/${file.file_id}`}) : json(res, {error: 'Unknown synthetic file'}, 404);
     }
     if (['/user/jwt/keys', '/jwt/keys'].includes(path)) return json(res, { keys: [['synthetic', identity.pem]] });
     if (path === '/.well-known/jwks.json') return json(res, { keys: [identity.jwk] });
@@ -133,7 +135,8 @@ const server = http.createServer(async (req, res) => {
     if (path.startsWith('/lw-workspace/')) return json(res, { status: 'Stopped' });
     const token = identity.issue();
     const headers = { ...req.headers, host: new URL(target).host, authorization: `Bearer ${token}`,
-      cookie: `access_token=${token}`, 'x-forwarded-host': req.headers.host, 'x-forwarded-proto': 'http' };
+      cookie: `access_token=${token}`, 'x-forwarded-host': configuredOrigin ? new URL(configuredOrigin).host : req.headers.host,
+      'x-forwarded-proto': configuredOrigin ? 'https' : 'http' };
     delete headers['proxy-authorization'];
     if (ppBody) {
       headers['content-type'] = 'application/json';

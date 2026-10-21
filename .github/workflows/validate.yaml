@@ -14,10 +14,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 scripts/aws_sandbox.py --help
       - run: python3 synthetic/generate.py
       - run: docker compose config --quiet
       - uses: azure/setup-helm@v4.3.1
       - run: helm lint helm && helm template sandbox helm > /tmp/sandbox.yaml
+      - run: helm template sandbox helm --set access.enabled=true --set access.publicOrigin=https://fixture.cloudfront.net --set 'access.originCidrs[0]=10.86.10.0/24' --set 'access.originCidrs[1]=10.86.11.0/24' > /tmp/sandbox-https.yaml
   terraform:
     runs-on: ubuntu-latest
     steps:

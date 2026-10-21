@@ -36,6 +36,9 @@ spec:
           {{- if eq $name "identity" }}
             - {name: SYNTHETIC_SANDBOX, value: '1'}
             - {name: PORT, value: '8080'}
+            {{- if $.Values.access.enabled }}
+            - {name: SANDBOX_PUBLIC_ORIGIN, value: {{ required "access.publicOrigin is required" $.Values.access.publicOrigin | quote }}}
+            {{- end }}
           {{- else if eq $name "frontend" }}
             - {name: GEN3_FENCE_SERVICE, value: 'http://identity:8080/user'}
             - {name: GEN3_AUTHZ_SERVICE, value: 'http://identity:8080'}
