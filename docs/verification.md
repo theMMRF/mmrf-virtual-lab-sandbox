@@ -40,6 +40,9 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
   Browser (52 KRAS-region variants), and Mutation Frequency survival. No failed
   local HTTP responses or uncaught page errors. A pre-existing localhost login
   cookie remains unchanged. Screenshots are saved under ignored screenshots/.
+- Analytics environment/consent regression tests pass (22 tests). The synthetic
+  browser run shows no tracking-consent modal, GA scripts, GA cookies or tracking
+  requests, including with a previously accepted consent preference.
 - Diagnosis age API comparisons use ten-year bins, with each bin's case IDs
   independently checked against the generator. The browser compares two
   demographic cohorts, checks every age bucket's counts, clicks a bucket to

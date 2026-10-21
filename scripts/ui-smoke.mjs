@@ -17,12 +17,16 @@ const existingCookie = 'normal-local-development-test-sentinel';
 await page.context().addCookies([{name:'access_token', value:existingCookie, url:origin}]);
 const failures=[];
 page.on('pageerror',e=>failures.push(e.message));
+page.on('request',r=>{if (/(^|\.)(google-analytics\.com|googletagmanager\.com|analytics\.google\.com|doubleclick\.net)$/.test(new URL(r.url()).hostname)) failures.push(`Unexpected tracking request: ${r.url()}`)});
 page.on('response',r=>{if(r.url().startsWith(origin)&&r.status()>=400) failures.push(`${r.status()} ${r.url()}`)});
 async function open(app) { await page.goto(`${origin}/?app=${app}`,{waitUntil:'domcontentloaded'}); await expect(page.getByText('Synthetic sandbox — all data is fabricated and has no clinical meaning.',{exact:true})).toBeVisible(); }
 async function capture(name){await page.mouse.move(0,0);await page.screenshot({path:`screenshots/${name}.png`,fullPage:true});}
 try {
   await open('CohortBuilder');
-  await page.getByRole('button',{name:'Ok',exact:true}).click();
+  await expect(page.getByTestId('cookie-consent-banner')).toHaveCount(0);
+  // Previously accepted production consent must not enable synthetic tracking.
+  await page.evaluate(()=>localStorage.setItem('mmrf-cookie-consent','accepted'));
+  await open('CohortBuilder');
   await expect(page.locator('body')).toContainText(new RegExp(`${cases.length.toLocaleString('en-US')}\\s*CASES`,'i'),{timeout:30000});
   await page.getByRole('tab',{name:'Demographic',exact:true}).click();
   await page.getByRole('checkbox',{name:'female',exact:true}).check();
@@ -144,6 +148,9 @@ try {
 
   await clinicalAge.screenshot({path:'screenshots/diagnosis-age-clinical.png'});
   console.log('PASS: comparison age buckets, exact bucket cohort membership, and clinical age histogram use years');
+  await expect(page.locator('#google-analytics-script, #google-analytics-init')).toHaveCount(0);
+  expect((await page.context().cookies(origin)).filter(cookie=>/^_ga(?:_|$)/.test(cookie.name))).toEqual([]);
+  console.log('PASS: no tracking modal, GA scripts, GA cookies, or tracking requests with prior consent accepted');
   await writeFile('screenshots/browser-errors.json', JSON.stringify(failures,null,2)+'\n');
   expect(failures).toEqual([]);
   expect((await page.context().cookies(origin)).find(cookie => cookie.name === 'access_token')?.value).toBe(existingCookie);
