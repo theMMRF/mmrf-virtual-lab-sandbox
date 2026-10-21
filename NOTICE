@@ -1,0 +1,11 @@
+MMRF Virtual Lab Sandbox
+Copyright 2026 Multiple Myeloma Research Foundation
+
+New sandbox configuration and generation code is licensed under Apache-2.0.
+Upstream services are fetched from their own public repositories and retain
+their respective copyright notices and licenses.
+
+ProteinPaint is Copyright St. Jude Children's Research Hospital and distributed
+under its academic-use license. Its container/package licenses remain inside the
+upstream distributions. See https://github.com/stjude/proteinpaint/blob/master/LICENSE.
+No code from the private theMMRF/ppmmrf repository is redistributed here.
