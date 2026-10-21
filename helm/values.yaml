@@ -1,0 +1,22 @@
+# ClusterIP only. Reach the frontend through kubectl port-forward.
+images:
+  frontend: mmrf-sandbox/frontend:local
+  guppy: mmrf-sandbox/guppy:local
+  analysis: mmrf-sandbox/analysis:local
+  proteinpaint: mmrf-sandbox/proteinpaint:local
+  identity: mmrf-sandbox/identity:local
+  seed: mmrf-sandbox/seed:local
+  elasticsearch: docker.elastic.co/elasticsearch/elasticsearch:7.17.29@sha256:3f55a7f6f29b95345dc33808d6e914f81d125d4ca90a414e26c81a3521400980
+imagePullPolicy: IfNotPresent
+networkPolicy:
+  enabled: true
+resources:
+  elasticsearch:
+    requests: {cpu: 250m, memory: 1Gi}
+    limits: {memory: 2Gi}
+  proteinpaint:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {memory: 2Gi}
+  default:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 1Gi}

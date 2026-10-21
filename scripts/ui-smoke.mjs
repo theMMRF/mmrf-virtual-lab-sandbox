@@ -1,0 +1,52 @@
+// Fresh ephemeral Chromium profile; never attaches to a user's browser.
+import {chromium, expect} from '@playwright/test';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
+const origin = process.env.SANDBOX_ORIGIN || 'http://127.0.0.1:3080';
+const url = new URL(origin);
+if (url.protocol !== 'http:' || !['127.0.0.1','localhost'].includes(url.hostname)) throw new Error('Only a local sandbox/port-forward is supported');
+const cases = JSON.parse(await readFile(new URL('../generated/cases.json', import.meta.url)));
+const variants = JSON.parse(await readFile(new URL('../generated/variants.json', import.meta.url)));
+const female = cases.filter(c => c.gender === 'female');
+const femaleIds = new Set(female.map(c => c.case_id));
+const counts = new Map();
+for (const v of variants.filter(v=>femaleIds.has(v.case_id))) counts.set(v.symbol,(counts.get(v.symbol)||0)+1);
+await mkdir('screenshots',{recursive:true});
+const browser = await chromium.launch({headless:true});
+const page = await browser.newPage({viewport:{width:1440,height:1000}});
+const failures=[];
+page.on('pageerror',e=>failures.push(e.message));
+page.on('response',r=>{if(r.url().startsWith(origin)&&r.status()>=400) failures.push(`${r.status()} ${r.url()}`)});
+async function open(app) { await page.goto(`${origin}/?app=${app}`,{waitUntil:'domcontentloaded'}); await expect(page.getByText('Synthetic sandbox — all data is fabricated and has no clinical meaning.',{exact:true})).toBeVisible(); }
+async function capture(name){await page.mouse.move(0,0);await page.screenshot({path:`screenshots/${name}.png`,fullPage:true});}
+try {
+  await open('CohortBuilder');
+  await page.getByRole('button',{name:'Ok',exact:true}).click();
+  await expect(page.locator('body')).toContainText(new RegExp(`${cases.length}\\s*CASES`,'i'),{timeout:30000});
+  await page.getByRole('tab',{name:'Demographic',exact:true}).click();
+  await page.getByRole('checkbox',{name:'female',exact:true}).check();
+  await expect(page.locator('body')).toContainText(new RegExp(`${female.length}\\s*CASES`,'i'),{timeout:30000});
+  await capture('cohort-filter');
+  console.log(`PASS: browser cohort builder selects ${female.length}/${cases.length} synthetic cases`);
+  await open('OncoMatrix');
+  for (const [gene,count] of counts) await expect(page.getByText(`${gene} (${count})`,{exact:true})).toBeVisible({timeout:60000});
+  const renderedSamples = await page.locator('svg text').allTextContents();
+  const allowed = new Set(female.map(c=>c.sample_id));
+  if(renderedSamples.filter(s=>s.startsWith('SYNTH-SAMPLE-')).some(s=>!allowed.has(s))) throw new Error('Matrix escaped selected cohort');
+  await capture('oncomatrix');
+  console.log('PASS: OncoMatrix selected-cohort mutation counts match generated source');
+  await open('Repository');
+  await expect(page.getByText('SYNTH-SAMPLE-0001.synthetic.fasta',{exact:true})).toBeVisible({timeout:30000});
+  await capture('repository');
+  console.log('PASS: repository displays synthetic metadata');
+  await open('Umap');
+  await expect(page.getByText(`${female.length} samples`,{exact:true})).toBeVisible({timeout:30000});
+  await capture('bulk-umap');
+  await open('SC');
+  await expect(page.getByText(female[0].sample_id,{exact:true})).toBeVisible({timeout:30000});
+  await page.getByText(female[0].sample_id,{exact:true}).click();
+  await page.waitForTimeout(2500);
+  await capture('single-cell');
+  console.log('PASS: bulk UMAP and single-cell sample selection');
+  await writeFile('screenshots/browser-errors.json', JSON.stringify(failures,null,2)+'\n');
+  expect(failures).toEqual([]);
+} catch(error) {await capture('failure'); console.error(await page.locator('body').innerText()); throw error;} finally {await browser.close();}

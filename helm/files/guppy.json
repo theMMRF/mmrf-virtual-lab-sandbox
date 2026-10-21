@@ -1,0 +1,288 @@
+{
+  "indices": [
+    {
+      "index": "sandbox_case",
+      "type": "case"
+    },
+    {
+      "index": "sandbox_case_centric",
+      "type": "case_centric"
+    },
+    {
+      "index": "sandbox_file",
+      "type": "file"
+    },
+    {
+      "index": "sandbox_project",
+      "type": "project"
+    },
+    {
+      "index": "sandbox_gene_centric",
+      "type": "gene_centric"
+    },
+    {
+      "index": "sandbox_ssm_centric",
+      "type": "ssm_centric"
+    },
+    {
+      "index": "sandbox_ssm_occurrence_centric",
+      "type": "ssm_occurrence_centric"
+    },
+    {
+      "index": "sandbox_cnv_centric",
+      "type": "cnv_centric"
+    },
+    {
+      "index": "sandbox_cnv_occurrence_centric",
+      "type": "cnv_occurrence_centric"
+    }
+  ],
+  "auth_filter_field": "auth_resource_path",
+  "arrayConfig": [
+    {
+      "index": "sandbox_case",
+      "array": [
+        "administered_regimen_lines",
+        "authz",
+        "available_variation_data",
+        "bone_assessments",
+        "diagnoses",
+        "diagnoses.treatments",
+        "family_histories",
+        "files",
+        "files.acl",
+        "files.downstream_analyses",
+        "follow_ups",
+        "gene",
+        "gene.ssm",
+        "gene.ssm.consequence",
+        "gene.ssm.observation",
+        "sample_ids",
+        "samples",
+        "summary.data_categories",
+        "summary.experimental_strategies"
+      ]
+    },
+    {
+      "index": "sandbox_case_centric",
+      "array": [
+        "administered_regimen_lines",
+        "authz",
+        "available_variation_data",
+        "bone_assessments",
+        "diagnoses",
+        "diagnoses.treatments",
+        "family_histories",
+        "files",
+        "files.acl",
+        "files.downstream_analyses",
+        "follow_ups",
+        "gene",
+        "gene.ssm",
+        "gene.ssm.consequence",
+        "gene.ssm.observation",
+        "sample_ids",
+        "samples",
+        "summary.data_categories",
+        "summary.experimental_strategies"
+      ]
+    },
+    {
+      "index": "sandbox_file",
+      "array": [
+        "acl",
+        "cases",
+        "cases.administered_regimen_lines",
+        "cases.authz",
+        "cases.bone_assessments",
+        "cases.diagnoses",
+        "cases.diagnoses.treatments",
+        "cases.family_histories",
+        "cases.files",
+        "cases.follow_ups",
+        "cases.sample_ids",
+        "cases.samples",
+        "downstream_analyses"
+      ]
+    },
+    {
+      "index": "sandbox_project",
+      "array": []
+    },
+    {
+      "index": "sandbox_gene_centric",
+      "array": [
+        "case",
+        "case.administered_regimen_lines",
+        "case.authz",
+        "case.available_variation_data",
+        "case.bone_assessments",
+        "case.cnv",
+        "case.diagnoses",
+        "case.diagnoses.treatments",
+        "case.family_histories",
+        "case.files",
+        "case.files.acl",
+        "case.files.downstream_analyses",
+        "case.follow_ups",
+        "case.sample_ids",
+        "case.samples",
+        "case.ssm",
+        "case.ssm.consequence",
+        "case.ssm.observation",
+        "case.summary.data_categories",
+        "case.summary.experimental_strategies",
+        "ssm",
+        "ssm.occurrence"
+      ]
+    },
+    {
+      "index": "sandbox_ssm_centric",
+      "array": [
+        "case.administered_regimen_lines",
+        "case.authz",
+        "case.available_variation_data",
+        "case.bone_assessments",
+        "case.diagnoses",
+        "case.diagnoses.treatments",
+        "case.family_histories",
+        "case.files",
+        "case.files.acl",
+        "case.files.downstream_analyses",
+        "case.follow_ups",
+        "case.gene",
+        "case.gene.ssm",
+        "case.gene.ssm.consequence",
+        "case.gene.ssm.observation",
+        "case.sample_ids",
+        "case.samples",
+        "case.summary.data_categories",
+        "case.summary.experimental_strategies",
+        "consequence",
+        "observation",
+        "occurrence",
+        "occurrence.case.administered_regimen_lines",
+        "occurrence.case.authz",
+        "occurrence.case.available_variation_data",
+        "occurrence.case.bone_assessments",
+        "occurrence.case.diagnoses",
+        "occurrence.case.diagnoses.treatments",
+        "occurrence.case.family_histories",
+        "occurrence.case.files",
+        "occurrence.case.files.acl",
+        "occurrence.case.files.downstream_analyses",
+        "occurrence.case.follow_ups",
+        "occurrence.case.gene",
+        "occurrence.case.gene.ssm",
+        "occurrence.case.gene.ssm.consequence",
+        "occurrence.case.gene.ssm.observation",
+        "occurrence.case.sample_ids",
+        "occurrence.case.samples",
+        "occurrence.case.summary.data_categories",
+        "occurrence.case.summary.experimental_strategies",
+        "occurrence.ssm.consequence",
+        "occurrence.ssm.observation",
+        "ssm.consequence",
+        "ssm.observation"
+      ]
+    },
+    {
+      "index": "sandbox_ssm_occurrence_centric",
+      "array": [
+        "case.administered_regimen_lines",
+        "case.authz",
+        "case.available_variation_data",
+        "case.bone_assessments",
+        "case.diagnoses",
+        "case.diagnoses.treatments",
+        "case.family_histories",
+        "case.files",
+        "case.files.acl",
+        "case.files.downstream_analyses",
+        "case.follow_ups",
+        "case.gene",
+        "case.gene.ssm",
+        "case.gene.ssm.consequence",
+        "case.gene.ssm.observation",
+        "case.sample_ids",
+        "case.samples",
+        "case.summary.data_categories",
+        "case.summary.experimental_strategies",
+        "consequence",
+        "observation",
+        "occurrence",
+        "occurrence.case.administered_regimen_lines",
+        "occurrence.case.authz",
+        "occurrence.case.available_variation_data",
+        "occurrence.case.bone_assessments",
+        "occurrence.case.diagnoses",
+        "occurrence.case.diagnoses.treatments",
+        "occurrence.case.family_histories",
+        "occurrence.case.files",
+        "occurrence.case.files.acl",
+        "occurrence.case.files.downstream_analyses",
+        "occurrence.case.follow_ups",
+        "occurrence.case.gene",
+        "occurrence.case.gene.ssm",
+        "occurrence.case.gene.ssm.consequence",
+        "occurrence.case.gene.ssm.observation",
+        "occurrence.case.sample_ids",
+        "occurrence.case.samples",
+        "occurrence.case.summary.data_categories",
+        "occurrence.case.summary.experimental_strategies",
+        "occurrence.ssm.consequence",
+        "occurrence.ssm.observation",
+        "ssm.consequence",
+        "ssm.observation"
+      ]
+    },
+    {
+      "index": "sandbox_cnv_centric",
+      "array": [
+        "case.administered_regimen_lines",
+        "case.authz",
+        "case.available_variation_data",
+        "case.bone_assessments",
+        "case.diagnoses",
+        "case.diagnoses.treatments",
+        "case.family_histories",
+        "case.files",
+        "case.files.acl",
+        "case.files.downstream_analyses",
+        "case.follow_ups",
+        "case.gene",
+        "case.gene.ssm",
+        "case.gene.ssm.consequence",
+        "case.gene.ssm.observation",
+        "case.sample_ids",
+        "case.samples",
+        "case.summary.data_categories",
+        "case.summary.experimental_strategies"
+      ]
+    },
+    {
+      "index": "sandbox_cnv_occurrence_centric",
+      "array": [
+        "case.administered_regimen_lines",
+        "case.authz",
+        "case.available_variation_data",
+        "case.bone_assessments",
+        "case.diagnoses",
+        "case.diagnoses.treatments",
+        "case.family_histories",
+        "case.files",
+        "case.files.acl",
+        "case.files.downstream_analyses",
+        "case.follow_ups",
+        "case.gene",
+        "case.gene.ssm",
+        "case.gene.ssm.consequence",
+        "case.gene.ssm.observation",
+        "case.sample_ids",
+        "case.samples",
+        "case.summary.data_categories",
+        "case.summary.experimental_strategies"
+      ]
+    }
+  ]
+}

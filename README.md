@@ -21,7 +21,7 @@ Docker Desktop runs it through emulation on Apple Silicon.
 python3 scripts/fetch_sources.py
 python3 synthetic/generate.py
 docker compose build
-docker compose up -d
+docker compose up -d --wait --wait-timeout 180
 python3 scripts/smoke.py
 ```
 
@@ -42,6 +42,17 @@ checks out clean detached copies into ignored `.sources/` directories; it refuse
 to overwrite edited copies. To develop an existing service, edit its source
 checkout and rebuild that service, or run its normal development command against
 the sandbox's local API. No application source is vendored in this repository.
+
+For repeatable browser tests and screenshots (a fresh headless Chromium profile):
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:ui
+```
+
+Results are written to ignored `screenshots/`. The UI test creates a demographic
+cohort and verifies its mutation counts against the generator output.
 
 ## Fixtures and contracts
 
@@ -77,7 +88,8 @@ storage; all developers share the synthetic identity.
 
 See [AWS deployment](docs/aws-deployment.md) for operator-controlled provisioning,
 image publishing, Helm deployment, checks, and teardown. Local Kubernetes testing
-uses the same chart with a separate kind cluster and kubeconfig.
+uses the same chart with a separate kind cluster and kubeconfig; see
+[local Kubernetes](docs/local-kubernetes.md) for the amd64 requirement.
 
 The Terraform tests use a mocked AWS provider. Passing them or a local Kubernetes
 deployment is not proof that a particular AWS account has the required quotas,

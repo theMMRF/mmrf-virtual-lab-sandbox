@@ -1,0 +1,8 @@
+.git
+.sources
+.terraform
+**/node_modules
+**/__pycache__
+**/.env*
+**/*.tfstate*
+screenshots

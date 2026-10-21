@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-config
+data:
+  guppy.json: |
+{{ .Files.Get "files/guppy.json" | indent 4 }}

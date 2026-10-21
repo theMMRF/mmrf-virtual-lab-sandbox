@@ -1,0 +1,137 @@
+{
+  "project.project_id": {
+    "type": "enum"
+  },
+  "primary_site": {
+    "type": "enum"
+  },
+  "disease_type": {
+    "type": "enum"
+  },
+  "demographic.gender": {
+    "type": "enum"
+  },
+  "demographic.race": {
+    "type": "enum"
+  },
+  "demographic.ethnicity": {
+    "type": "enum"
+  },
+  "demographic.age_at_index": {
+    "type": "age"
+  },
+  "demographic.days_to_death": {
+    "type": "days"
+  },
+  "diagnoses.age_at_diagnosis": {
+    "type": "age_in_years"
+  },
+  "demographic.vital_status": {
+    "type": "enum"
+  },
+  "demographic.year_of_death": {
+    "type": "year"
+  },
+  "follow_ups.ecog_performance_status": {
+    "type": "enum"
+  },
+  "family_histories.relatives_with_cancer_history_count": {
+    "type": "numeric_range"
+  },
+  "bone_assessments.lytic_bone_lesion_present": {
+    "type": "enum"
+  },
+  "bone_assessments.mm_bone_lesion_femur": {
+    "type": "enum"
+  },
+  "bone_assessments.mm_bone_lesion_pelvis": {
+    "type": "enum"
+  },
+  "bone_assessments.mm_bone_lesion_ribs": {
+    "type": "enum"
+  },
+  "bone_assessments.mm_bone_lesion_skull": {
+    "type": "enum"
+  },
+  "bone_assessments.mm_bone_lesion_spine": {
+    "type": "enum"
+  },
+  "bone_assessments.number_of_lytic_lesions": {
+    "type": "enum"
+  },
+  "bone_assessments.osteopenia_osteoporosis": {
+    "type": "enum"
+  },
+  "outcomes.censor_os": {
+    "type": "enum"
+  },
+  "outcomes.censor_pfs": {
+    "type": "enum"
+  },
+  "outcomes.surivival_time_os": {
+    "type": "numeric_range"
+  },
+  "outcomes.survival_time_pfs": {
+    "type": "numeric_range"
+  },
+  "diagnoses.best_overall_response": {
+    "type": "enum"
+  },
+  "administered_regimen_lines.line": {
+    "type": "numeric_range"
+  },
+  "administered_regimen_lines.first_line": {
+    "type": "multiselect"
+  },
+  "administered_regimen_lines.regimen_name": {
+    "type": "multiselect"
+  },
+  "administered_regimen_lines.regimen_duration": {
+    "type": "numeric_range"
+  },
+  "administered_regimen_lines.regimen_short_name": {
+    "type": "multiselect"
+  },
+  "administered_regimen_lines.reason_for_discontinuation": {
+    "type": "enum"
+  },
+  "diagnoses.bmi_at_diagnosis": {
+    "type": "multiselect"
+  },
+  "diagnoses.days_to_diagnosis": {
+    "type": "days"
+  },
+  "diagnoses.days_to_last_follow_up": {
+    "type": "days"
+  },
+  "diagnoses.days_to_best_overall_response": {
+    "type": "days"
+  },
+  "diagnoses.iss_stage": {
+    "type": "enum"
+  },
+  "diagnoses.first_progressive_disease": {
+    "type": "enum"
+  },
+  "cgs_risk_key_criteria.cgs_risk_category": {
+    "type": "enum"
+  },
+  "cgs_risk_key_criteria.cgs_risk_criteria": {
+    "type": "enum"
+  },
+  "cgs_risk_key_criteria.other_criteria": {
+    "type": "enum"
+  },
+  "samples.sample_type": {
+    "type": "enum"
+  },
+  "samples.specimen_type": {
+    "type": "enum"
+  },
+  "samples.tissue_type": {
+    "type": "enum"
+  },
+  "files.experimental_strategy": {
+    "type": "enum"
+  }
+}

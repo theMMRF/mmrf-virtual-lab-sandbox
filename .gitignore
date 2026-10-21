@@ -1,0 +1,13 @@
+generated/
+.sources/
+.env
+*.tfstate*
+*.tfplan
+.terraform/
+node_modules/
+__pycache__/
+screenshots/
+
+*.auto.tfvars
+playwright-report/
+test-results/

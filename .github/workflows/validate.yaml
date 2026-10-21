@@ -1,0 +1,32 @@
+name: Validate synthetic sandbox
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: npm ci
+      - run: npm test
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 synthetic/generate.py
+      - run: docker compose config --quiet
+      - uses: azure/setup-helm@v4.3.1
+      - run: helm lint helm && helm template sandbox helm > /tmp/sandbox.yaml
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: {terraform_version: '1.13.5'}
+      - working-directory: terraform
+        run: |
+          terraform init -backend=false
+          terraform fmt -check
+          terraform validate
+          terraform test
