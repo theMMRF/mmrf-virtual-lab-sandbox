@@ -53,7 +53,7 @@ can still prevent provisioning.
 Requirements: Terraform >=1.9 and <2, AWS CLI v2, Docker with Buildx and Compose
 >=2.17, Helm 3 or 4, Python >=3.9, Git, and kubectl compatible with EKS 1.35 (1.34–1.36).
 Node/npm are needed only for the optional headless UI checks. Allow at least
-12 GB Docker memory and 20 GB free local disk for image preparation. Check account
+12 GiB Docker memory and 30 GiB free local disk for image preparation. Check account
 EKS/EC2 quotas, regional m6i.xlarge availability and your event budget yourself.
 
 The defaults create one EKS 1.35 control plane, one m6i.xlarge worker (4 vCPU,

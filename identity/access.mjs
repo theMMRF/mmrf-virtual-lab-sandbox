@@ -43,13 +43,21 @@ export function createAccessServer({username, password, origin, upstream = 'http
     delete headers.authorization;
     delete headers['proxy-authorization'];
     delete headers.forwarded;
+    const proxyFailure = () => {
+      if (res.destroyed || res.writableEnded) return;
+      if (res.headersSent) return res.destroy();
+      res.writeHead(502, {'cache-control': 'no-store', 'content-type': 'text/plain'});
+      res.end('Synthetic service unavailable');
+    };
     const proxy = http.request(destination, {method: req.method, headers}, response => {
+      response.on('error', proxyFailure);
+      response.on('aborted', proxyFailure);
       res.writeHead(response.statusCode || 502, {...response.headers, 'cache-control': 'no-store',
         'strict-transport-security': 'max-age=86400', 'x-content-type-options': 'nosniff'});
       response.pipe(res);
     });
     proxy.setTimeout(180000, () => proxy.destroy());
-    proxy.on('error', () => {if (!res.headersSent) res.writeHead(502); res.end('Synthetic service unavailable');});
+    proxy.on('error', proxyFailure);
     req.on('aborted', () => proxy.destroy());
     res.on('close', () => {if (!res.writableEnded) proxy.destroy();});
     req.pipe(proxy);

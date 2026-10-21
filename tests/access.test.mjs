@@ -52,6 +52,28 @@ test('hosted configuration fails closed for missing passwords or invalid origins
   assert.throws(()=>createAccessServer({username:'sandbox',password:'short',origin:'https://x.cloudfront.net'}));
 });
 
+test('upstream failures return 502 before headers and abort partial streamed responses',async t=>{
+  const upstream=http.createServer((req,res)=>{
+    if(req.url==='/before') return res.destroy();
+    res.writeHead(200,{'content-type':'application/json'});
+    res.write('{"incomplete":');
+    setTimeout(()=>res.destroy(),30);
+  });
+  upstream.listen(0,'127.0.0.1'); await once(upstream,'listening');
+  t.after(()=>upstream.close());
+  const password='synthetic-unit-test-password-'.repeat(2);
+  const server=createAccessServer({username:'sandbox',password,origin:'https://syntheticfixture.cloudfront.net',
+    upstream:`http://127.0.0.1:${upstream.address().port}`});
+  server.listen(0,'127.0.0.1'); await once(server,'listening'); t.after(()=>server.close());
+  const origin=`http://127.0.0.1:${server.address().port}`;
+  const options={headers:{authorization:'Basic '+Buffer.from('sandbox:'+password).toString('base64')}};
+  const unavailable=await fetch(origin+'/before',options);
+  assert.equal(unavailable.status,502);
+  assert.equal(unavailable.headers.get('cache-control'),'no-store');
+  assert.equal(await unavailable.text(),'Synthetic service unavailable');
+  await assert.rejects(async()=>{const response=await fetch(origin+'/after',options);await response.text();});
+});
+
 test('hosted identity emits HTTPS download URLs from its configured origin', async t=>{
   const directory=await mkdtemp(join(tmpdir(),'mmrf-identity-origin-'));
   t.after(()=>rm(directory,{recursive:true,force:true}));
