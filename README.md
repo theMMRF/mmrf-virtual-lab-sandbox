@@ -67,15 +67,19 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 `SYNTH-CASE-0001`, `SYNTH-SAMPLE-0001`, and `SYNTH-FILE-0001` identify the same
 generated case throughout Gen3, ProteinPaint, repository metadata, and generated
-FASTA files. The generator accepts a seed and count, never a data input. Gene
+test files. The generator accepts a seed and count, never a data input. Gene
 symbols are public reference identifiers, but gene models, coordinates, variants,
 reference sequence, expression, survival, UMAP coordinates, and cell values are
 fabricated. The fixture genes are KRAS, NRAS, TP53, BRAF, DIS3 and MYC; use those
 symbols when testing gene search. The `hg38` dataset key is retained for frontend compatibility; these
 fixtures do **not** represent the real human genome.
 
-The default seed (42) has 1,000 cases, 2,132 case-level variants across six genes,
-and 80,000 synthetic single cells. Balanced demographic categories keep ordinary
+The default seed (42) has 1,000 cases split across two projects, 2,908 mutation occurrences
+sharing 48 invented variants across six genes, and 80,000 synthetic single cells.
+File facets span WGS, WXS, RNA-Seq and scRNA-Seq, with FASTA, BAM, FASTQ, TSV, VCF
+and CSV test files and multiple categories/workflows. Recurring hotspots and
+mutation classes make cohort comparisons useful; they are not clinical models.
+Single-cell coordinates use irregular curved subclusters, not measured embeddings. Balanced demographic categories keep ordinary
 sex/race cohorts above the existing ten-case survival threshold. These are
 demonstration choices, not estimates of real demographics or mutation prevalence.
 MYC also resolves through c-Myc, ENSG00000136997, ENST00000621592, and NM_002467.
@@ -119,7 +123,9 @@ platform actions and APIs. The language interface, MCP servers, multi-agent
 orchestration, and biomedical knowledge graph are challenge/future work, rather
 than part of the environment launcher. Notebooks, file upload, real-data download,
 and production identity federation are excluded. The repository browser downloads
-only generated FASTA files.
+only tiny generated test files; manifests and sample sheets work without S3 or
+Gen3 CLI credentials. BAM fixtures contain a single fabricated unmapped read;
+VCF repository fixtures are valid header-only examples. None is real assay data.
 
 ## Licenses
 

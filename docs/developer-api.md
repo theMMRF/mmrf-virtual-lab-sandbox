@@ -47,7 +47,9 @@ curl -fsS http://localhost:3080/analysis/v0/survival/ \
   -d '{"filters":[{"in":{"demographic.gender":["female"]}}]}'
 ```
 
-Only generated FASTA files can be downloaded. `scripts/smoke.py` contains working
+Only tiny generated FASTA/BAM/FASTQ/TSV/VCF/CSV test files can be downloaded.
+The website exports filtered manifests, sample sheets and metadata without S3.
+There is no Gen3 CLI transfer/credential service. `scripts/smoke.py` contains working
 examples for gene-frequency tables, single-cell and bulk UMAP, reference sequence,
 and differential expression. `config/cohort-fields.json` lists generated clinical
 field shapes. Operators `and`, `or`, `not`, `in`, `exclude`, `=`, `!=`, `>`, `>=`,

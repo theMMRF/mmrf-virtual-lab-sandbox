@@ -6,6 +6,7 @@ import sqlite3
 import h5py
 import numpy as np
 import subprocess
+from embedding import cell_coordinates
 
 root = Path('/home/root/pp/tp')
 cases = json.loads((root / 'cases.json').read_text())
@@ -35,6 +36,7 @@ pseudobulk = {key: {method: [[] for _ in genes] for method in ('mean', 'percent'
 with (root / 'singlecell/meta/combined.tsv').open('w') as meta:
     meta.write('cell\tsample\tsubcluster\tcompartment\tcell_type\tlineage\tx\ty\n')
     for sample in samples:
+        shift = (rng.gauss(0, .15), rng.gauss(0, .15))
         cells = [f'{sample}-CELL-{number:04d}' for number in range(1, 81)]
         # All categories have cells, with independent random proportions per sample.
         labels = lineages + rng.choices(lineages, weights=[3, 2, 1, 1], k=len(cells) - len(lineages))
@@ -43,10 +45,10 @@ with (root / 'singlecell/meta/combined.tsv').open('w') as meta:
         with (root / f'singlecell/umap/{sample}_umap.txt').open('w') as output:
             output.write('cell\tx\ty\tcell_type\n')
             for cell, label in zip(cells, labels):
-                cluster = lineages.index(label)
-                x, y = rng.gauss(cluster % 2 * 5, 1), rng.gauss(cluster // 2 * 5, 1)
+                subcluster = rng.choices([0, 1, 2], weights=[6, 3, 1], k=1)[0]
+                x, y = cell_coordinates(rng, label, subcluster, shift)
                 output.write(f'{cell}\t{x:.4f}\t{y:.4f}\tSynthetic {label} cells\n')
-                meta.write(f'{cell}\t{sample}\tSynthetic {label}-{rng.randint(1, 3)}\tSynthetic immune\tSynthetic {label} cells\t{label}\t{x:.4f}\t{y:.4f}\n')
+                meta.write(f'{cell}\t{sample}\tSynthetic {label}-{subcluster+1}\tSynthetic immune\tSynthetic {label} cells\t{label}\t{x:.4f}\t{y:.4f}\n')
         matrix(root / f'singlecell/expression/{sample}.h5', cells, values)
         combined_cells.extend(cells)
         for index, row in enumerate(values):

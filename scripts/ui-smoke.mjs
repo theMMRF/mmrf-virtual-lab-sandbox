@@ -6,6 +6,7 @@ const url = new URL(origin);
 if (url.protocol !== 'http:' || !['127.0.0.1','localhost'].includes(url.hostname)) throw new Error('Only a local sandbox/port-forward is supported');
 const cases = JSON.parse(await readFile(new URL('../generated/cases.json', import.meta.url)));
 const variants = JSON.parse(await readFile(new URL('../generated/variants.json', import.meta.url)));
+const fixtureFiles = JSON.parse(await readFile(new URL('../generated/files.json', import.meta.url)));
 const female = cases.filter(c => c.gender === 'female' && c.race === 'black or african american');
 const femaleIds = new Set(female.map(c => c.case_id));
 const counts = new Map();
@@ -45,6 +46,41 @@ try {
   await expect(page.getByText(`${female[0].sample_id}.synthetic.fasta`,{exact:true})).toBeVisible({timeout:30000});
   await capture('repository');
   console.log('PASS: repository displays synthetic metadata');
+  await page.getByRole('checkbox',{name:'BAM',exact:true}).check();
+  const expectedFiles = fixtureFiles.filter(f=>femaleIds.has(f.cases[0].case_id)&&f.data_format==='BAM');
+  for (const [button, idKey] of [['button-sample-sheet-files-table','file_id'], ['button-manifest-files-table','object_id'], ['button-metadata-files-table','file_id']]) {
+    const pending = page.waitForEvent('download');
+    await page.getByTestId(button).click();
+    const download = await pending;
+    const exported = JSON.parse(await readFile(await download.path(),'utf8'));
+    expect(exported.map(f=>f[idKey]).sort()).toEqual(expectedFiles.map(f=>f.file_id).sort());
+  }
+  const fixture = expectedFiles[0];
+  const pendingDetail = page.waitForEvent('popup');
+  await page.getByText(fixture.file_name,{exact:true}).click();
+  const filePage = await pendingDetail;
+  filePage.on('pageerror',e=>failures.push(e.message));
+  const localFile = filePage.locator('a[href*="/user/data/download/"]').first();
+  const pendingFile = filePage.waitForEvent('download');
+  await localFile.click();
+  const downloadedFile = await pendingFile;
+  expect(await readFile(await downloadedFile.path())).toEqual(await readFile(new URL(`../generated/${fixture.file_name}`,import.meta.url)));
+  await filePage.close();
+  await page.getByRole('checkbox',{name:'BAM',exact:true}).uncheck();
+  console.log('PASS: website sample sheet, manifest, metadata and synthetic file downloads respect the selected BAM cohort');
+  await open('Projects');
+  for (const projectId of ['SYNTHETIC-MM','SYNTHETIC-RNA']) await expect(page.getByRole('link',{name:projectId,exact:true})).toBeVisible();
+  await capture('projects');
+  const pendingProject = page.waitForEvent('popup');
+  await page.getByRole('link',{name:'SYNTHETIC-MM',exact:true}).click();
+  const projectPage = await pendingProject;
+  projectPage.on('pageerror',e=>failures.push(e.message));
+  await expect(projectPage.getByTestId('text-file-count-project-summary')).toContainText('500');
+  await projectPage.screenshot({path:'screenshots/project-summary.png',fullPage:true});
+  await projectPage.getByTestId('button-view-files-in-repository').click();
+  await expect(projectPage.getByText('SYNTH-SAMPLE-0001.synthetic.fasta',{exact:true})).toBeVisible();
+  await projectPage.close();
+  console.log('PASS: Projects list, project summary and View Files navigation');
   const bulkResponse = page.waitForResponse(r => r.url().includes('/termdb/sampleScatter') && r.status() === 200);
   await open('Umap');
   const bulk = await (await bulkResponse).json();
@@ -78,17 +114,28 @@ try {
   await open('ProteinPaint');
   await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).fill('c-Myc');
   await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).press('Enter');
-  await expect(page.getByText(`${counts.get('MYC')} variants`,{exact:true})).toBeVisible({timeout:60000});
+  const mycVariants = new Set(variants.filter(v=>femaleIds.has(v.case_id)&&v.symbol==='MYC').map(v=>v.ssm_id));
+  await expect(page.getByText(`${mycVariants.size} variants`,{exact:true})).toBeVisible({timeout:60000});
   await capture('proteinpaint-gene');
   await open('GB');
   await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).fill('chr12:10001-12000');
   await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).press('Enter');
-  await expect(page.getByText(`${counts.get('KRAS')} variants`,{exact:true})).toBeVisible({timeout:60000});
+  const krasVariants = new Set(variants.filter(v=>femaleIds.has(v.case_id)&&v.symbol==='KRAS').map(v=>v.ssm_id));
+  await expect(page.getByText(`${krasVariants.size} variants`,{exact:true})).toBeVisible({timeout:60000});
   await capture('genome-browser');
   await open('MutationFrequency');
   await expect(page.getByText('Synthetic KRAS',{exact:true})).toBeVisible({timeout:30000});
   await expect(page.locator('body')).not.toContainText('Not enough survival data');
   await capture('mutation-frequency');
+  const [mutationSurvival] = await Promise.all([
+    page.waitForResponse(r=>r.url().endsWith('/survival/compare_genomic')&&r.request().postDataJSON()?.type==='ssm'&&r.request().postDataJSON()?.symbol?.startsWith('SYNTH-SSM-')),
+    page.getByTestId('button-mutations-tab').click(),
+  ]);
+  const mutationCurves = await mutationSurvival.json();
+  expect(mutationCurves.results).toHaveLength(2);
+  expect(mutationCurves.results.every(curve=>curve.donors.length>=10)).toBe(true);
+  await expect(page.locator('body')).not.toContainText('Not enough survival data');
+  await capture('mutation-survival');
   console.log('PASS: selected-cohort expression clustering, ProteinPaint gene view, and mutation frequency');
   // Keep the production age-unit regression covered in the synthetic launch path.
   await open('CohortBuilder');

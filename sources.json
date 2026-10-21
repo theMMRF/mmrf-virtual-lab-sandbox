@@ -1,7 +1,7 @@
 {
   "frontend": {
     "url": "https://github.com/theMMRF/mmrf-data-commons.git",
-    "commit": "4ca3d8d1370201c2e51acdbd6eefea5f06f8deee"
+    "commit": "c03ccb9542028b9d217df1703e2911648f1f3df0"
   },
   "guppy": {
     "url": "https://github.com/theMMRF/guppy.git",
@@ -9,6 +9,6 @@
   },
   "analysis": {
     "url": "https://github.com/theMMRF/gen3-analysis.git",
-    "commit": "fdeb8bd84b2d7e220766fa6cd73048e43833b6c4"
+    "commit": "ffa4069f8f63f05e8fbbc33c82be14ca789986bc"
   }
 }

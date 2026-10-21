@@ -5,6 +5,9 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+import gzip
+import hashlib
+from collections import Counter
 
 spec = importlib.util.spec_from_file_location('generator', Path(__file__).resolve().parents[1] / 'synthetic/generate.py')
 generator = importlib.util.module_from_spec(spec)
@@ -41,17 +44,34 @@ class SyntheticIntegrity(unittest.TestCase):
                 else:
                     reference[chrom] += line
             for variant in variants:
-                self.assertEqual(reference[variant['chr']][variant['pos'] - 1], variant['ref'])
+                self.assertEqual(reference[variant['chr']][variant['pos'] - 1:variant['pos'] - 1 + len(variant['ref'])], variant['ref'])
             for line in (Path(first) / 'variants.vcf').read_text().splitlines():
                 if not line.startswith('#'):
                     self.assertEqual(len(line.split('\t')[7].removeprefix('CSQ=').split('|')), 12)
             for f in files:
-                sequence = (Path(first) / f['file_name']).read_text().splitlines()[1]
-                self.assertEqual(set(sequence), set('ACGT'))
+                payload = (Path(first) / f['file_name']).read_bytes()
+                self.assertEqual(f['file_size'], len(payload))
+                self.assertEqual(f['md5sum'], hashlib.md5(payload, usedforsecurity=False).hexdigest())
+                if f['data_format'] == 'FASTA':
+                    self.assertEqual(set(payload.decode().splitlines()[1]), set('ACGT'))
+                if f['data_format'] == 'BAM':
+                    self.assertTrue(gzip.decompress(payload).startswith(b'BAM\x01'))
 
     def test_demographic_groups_support_survival_and_gene_comparisons(self):
         with tempfile.TemporaryDirectory() as out:
-            cases, _, variants = generator.generate(out)
+            cases, files, variants = generator.generate(out)
+            self.assertEqual(len({c['project_id'] for c in cases}), 2)
+            self.assertEqual({v['class'] for v in variants}, {'M', 'N', 'P', 'F', 'D', 'I', 'S'})
+            for field in ('data_format', 'data_type', 'data_category', 'experimental_strategy'):
+                self.assertGreaterEqual(len({f[field] for f in files}), 3)
+            self.assertGreaterEqual(len({f['downstream_analyses'][0]['workflow_type'] for f in files}), 3)
+            # One shared ID and one VCF row per variant, with every carrier on it.
+            carriers = {}
+            for variant in variants:
+                carriers.setdefault(variant['ssm_id'], set()).add(variant['sample_id'])
+            rows = [line.split('\t') for line in (Path(out) / 'variants.vcf').read_text().splitlines() if not line.startswith('#')]
+            self.assertEqual(len(rows), len(carriers))
+            self.assertTrue(all({c['sample_id'] for c, gt in zip(cases, row[9:]) if gt == '0/1'} == carriers[row[2]] for row in rows))
             for gender in ('male', 'female'):
                 for race in ('white', 'black or african american', 'asian'):
                     selected = {c['case_id'] for c in cases if c['gender'] == gender and c['race'] == race}
@@ -60,6 +80,8 @@ class SyntheticIntegrity(unittest.TestCase):
                         mutated = {v['case_id'] for v in variants if v['symbol'] == symbol and v['case_id'] in selected}
                         self.assertGreaterEqual(len(mutated), 10, (gender, race, symbol))
                         self.assertGreaterEqual(len(selected - mutated), 10, (gender, race, symbol))
+                        recurrent = Counter(v['ssm_id'] for v in variants if v['symbol'] == symbol and v['case_id'] in selected)
+                        self.assertGreaterEqual(recurrent.most_common(1)[0][1], 10, (gender, race, symbol))
 
 
 if __name__ == '__main__':

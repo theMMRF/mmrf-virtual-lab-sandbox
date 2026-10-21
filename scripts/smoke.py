@@ -29,7 +29,8 @@ def call(path, payload=None, raw=False):
     if raw:
         return data
     value = json.loads(data)
-    assert not value.get('error') and not value.get('errors'), (path, value)
+    if isinstance(value, dict):
+        assert not value.get('error') and not value.get('errors'), (path, value)
     return value
 
 
@@ -63,6 +64,25 @@ assert all(f['file_id'].startswith('SYNTH-FILE-') and f['cases'][0]['case_id'].s
 sequence = call('/sandbox/files/SYNTH-FILE-0001', raw=True).decode().splitlines()
 assert sequence[0].startswith('>SYNTH-SAMPLE-0001') and set(sequence[1]) <= set('ACGT')
 print('PASS: synthetic repository metadata and FASTA download')
+fixture_files = json.loads((root / 'generated/files.json').read_text())
+projects = call('/guppy/graphql', {'query': '''{Project_project{project_id name program{name program_id dbgap_accession_number} dbgap_accession_number disease_type primary_site summary{case_count file_count file_size data_categories{data_category case_count file_count} experimental_strategies{experimental_strategy case_count file_count}}}}'''})['data']['Project_project']
+assert len(projects) == 2
+for project in projects:
+    expected_files = [f for f in fixture_files if f['project_id'] == project['project_id']]
+    assert project['summary']['file_count'] == len(expected_files)
+    assert project['summary']['case_count'] == sum(c['project_id'] == project['project_id'] for c in cases)
+    assert project['summary']['file_size'] == sum(f['file_size'] for f in expected_files)
+print('PASS: two navigable project query contracts with exact synthetic summaries')
+for file_format in {f['data_format'] for f in fixture_files}:
+    selected_files = [f for f in fixture_files if f['data_format'] == file_format]
+    sample = selected_files[0]
+    downloaded = call('/user/data/download/' + sample['file_id'] + '?redirect=true', raw=True)
+    assert downloaded == (root / 'generated' / sample['file_name']).read_bytes()
+    exported = call('/analysis/v0/cohorts/download', {'index': 'file', 'case_ids_filter_path': 'cases.case_id',
+        'cohort_filter': {}, 'filter': {'in': {'data_format': [file_format]}}, 'accessibility': 'accessible',
+        'fields': ['file_id', 'file_name', 'file_size', 'md5sum', 'cases.case_id']})
+    assert {f['file_id'] for f in exported} == {f['file_id'] for f in selected_files}
+print('PASS: varied file facets, exact filtered manifest source and local download bytes for every format')
 
 health = call('/protein-paint/healthcheck')
 assert health['dsSummary']['failed'] == 0 and health['dsSummary']['done'] == 1
@@ -91,8 +111,18 @@ for path, items, count_field in [('gene_frequency_chart', 'data', 'numCases'), (
 assert all(g['ssm_count'] > 0 for g in table['genes'])
 
 mutations = call('/analysis/v0/genomic/ssm_table', {'cohort_filter': cohort_filter})
-assert mutations['ssmsTotal'] == sum(v['case_id'] in {c['case_id'] for c in female} for v in variants)
-assert all(s['score'] == 1 for s in mutations['ssms'])
+female_ids = {c['case_id'] for c in female}
+assert mutations['ssmsTotal'] == len({v['ssm_id'] for v in variants if v['case_id'] in female_ids})
+for mutation in mutations['ssms']:
+    members = {v['case_id'] for v in variants if v['ssm_id'] == mutation['ssm_id'] and v['case_id'] in female_ids}
+    assert mutation['score'] == len(members), (mutation['ssm_id'], mutation['score'], len(members))
+for selected_filter in [{}, cohort_filter]:
+    selected_ids = {c['case_id'] for c in cases if not selected_filter or c['gender'] == 'female'}
+    for mutation_filter in [{}, {'in': {'biotype': ['protein_coding']}}]:
+        result = call('/analysis/v0/genomic/ssm_table', {'cohort_filter': selected_filter, 'ssm_filter': mutation_filter})
+        for mutation in result['ssms']:
+            expected_count = len({v['case_id'] for v in variants if v['ssm_id'] == mutation['ssm_id'] and v['case_id'] in selected_ids})
+            assert mutation['score'] == expected_count, (selected_filter, mutation_filter, mutation, expected_count)
 print('PASS: real analysis gene/mutation totals match independently generated cohort variants')
 
 
@@ -132,9 +162,16 @@ for symbol, mutated_samples in expected.items():
     assert {d['id'] for d in comparison['results'][0]['donors']} == female_case_ids - mutated_case_ids
     assert {d['id'] for d in comparison['results'][1]['donors']} == mutated_case_ids
 print('PASS: gene-survival curves include the exact mutated and unmutated cases for all six fixture genes')
+hotspot = max(mutations['ssms'], key=lambda m: m['score'])
+carriers = {v['case_id'] for v in variants if v['ssm_id'] == hotspot['ssm_id'] and v['case_id'] in female_case_ids}
+comparison = call('/analysis/v0/survival/compare_genomic', {'case_filter': cohort_filter, 'filter': {}, 'symbol': hotspot['ssm_id'], 'type': 'ssm'})
+assert {d['id'] for d in comparison['results'][0]['donors']} == female_case_ids - carriers
+assert {d['id'] for d in comparison['results'][1]['donors']} == carriers
+assert len(carriers) >= 10
+print('PASS: recurring mutation-level survival includes exact carriers and noncarriers')
 for expression, selected in [
     ({'>=': {'demographic.days_to_death': 1000}}, [c for c in cases if c['days_to_death'] is not None and c['days_to_death'] >= 1000]),
-    ({'in': {'files.data_format': ['FASTA']}}, cases),
+    ({'in': {'files.data_format': ['FASTA']}}, [c for c in cases if any(f['data_format'] == 'FASTA' for f in c['files'])]),
 ]:
     result = call('/guppy/graphql', {'query': query if 'CaseCentric' in query else 'query($filter:JSON){CaseCentric_case_centric(first:1000,filter:$filter){case_id}}', 'variables': {'filter': expression}})
     assert {c['case_id'] for c in result['data']['CaseCentric_case_centric']} == {c['case_id'] for c in selected}

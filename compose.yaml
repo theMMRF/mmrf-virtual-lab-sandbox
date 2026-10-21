@@ -15,7 +15,7 @@ services:
     image: mmrf-sandbox/seed:local
     build: {context: ., dockerfile: docker/seed.Dockerfile}
     command: [python, /scripts/seed_es.py]
-    volumes: ['./synthetic:/scripts:ro', './generated:/data']
+    volumes: ['./synthetic:/scripts:ro', './generated:/data', './config:/config:ro']
     depends_on:
       elasticsearch: {condition: service_healthy}
   guppy:

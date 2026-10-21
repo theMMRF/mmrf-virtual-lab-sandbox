@@ -9,5 +9,6 @@ COPY proteinpaint/genome.mjs ./genome/synthetic.mjs
 COPY proteinpaint/dataset.mjs ./dataset/synthetic.mjs
 COPY generated /home/root/pp/tp
 COPY synthetic/generate_assays.py /tmp/generate_assays.py
+COPY synthetic/embedding.py /tmp/embedding.py
 RUN apt-get update && apt-get install -y --no-install-recommends tabix && rm -rf /var/lib/apt/lists/* && /opt/venv/bin/python /tmp/generate_assays.py
 RUN bcftools view -Ob -o /home/root/pp/tp/variants.bcf.gz /home/root/pp/tp/variants.vcf && bcftools index /home/root/pp/tp/variants.bcf.gz

@@ -11,7 +11,8 @@ const dataDir = resolve(process.env.DATA_DIR || fileURLToPath(new URL('../genera
 const cases = JSON.parse(await readFile(join(dataDir, 'cases.json')));
 const files = JSON.parse(await readFile(join(dataDir, 'files.json')));
 if (!cases.length || cases.some(c => !c.synthetic || !c.case_id.startsWith('SYNTH-CASE-'))) throw new Error('Only generated synthetic cases are allowed');
-const resources = ['/mmrf_metadata', '/programs/SYNTHETIC/projects/MM'];
+const resources = ['/mmrf_metadata', ...new Set(cases.map(c => c.auth_resource_path))];
+const projectAccess = Object.fromEntries([...new Set(cases.map(c => c.project_id))].map(id => [id, ['read', 'read-storage']]));
 const terms = { id: 1, version: 'synthetic-v1', effective_at: '2026-01-01T00:00:00Z', terms_url: null,
   terms_content: 'Synthetic demonstration data only. No patient data or clinical interpretation.', content_format: 'plain_text' };
 const targets = {
@@ -49,19 +50,23 @@ const server = http.createServer(async (req, res) => {
     if (path === '/sandbox/session') return json(res, { access_token: identity.issue(), expires_in: 1800, synthetic: true });
     if (path.startsWith('/sandbox/files/')) {
       const file = files.find(f => path === `/sandbox/files/${f.file_id}`);
-      if (!file || !/^SYNTH-SAMPLE-[0-9]+\.synthetic\.fasta$/.test(file.file_name)) return json(res, {error: 'Unknown synthetic file'}, 404);
+      if (!file || !/^SYNTH-SAMPLE-[0-9]+\.synthetic\.(fasta|bam|fastq|tsv|vcf|csv)$/.test(file.file_name)) return json(res, {error: 'Unknown synthetic file'}, 404);
       const content = await readFile(join(dataDir, file.file_name));
-      res.writeHead(200, {'content-type': 'text/plain', 'content-disposition': `attachment; filename="${file.file_name}"`});
+      res.writeHead(200, {'content-type': file.data_format === 'BAM' ? 'application/octet-stream' : 'text/plain', 'content-disposition': `attachment; filename="${file.file_name}"`});
       return res.end(content);
     }
     if (path.startsWith('/index/index/')) {
       const file = files.find(f => path === `/index/index/${f.file_id}`);
       if (!file) return json(res, {error: 'Unknown synthetic file'}, 404);
       return json(res, {did: file.file_id, file_name: file.file_name, size: file.file_size, hashes: {md5: file.md5sum},
-        urls: [`http://${req.headers.host}/sandbox/files/${file.file_id}`], acl: ['SYNTHETIC-MM']});
+        urls: [`http://${req.headers.host}/sandbox/files/${file.file_id}`], acl: file.acl});
     }
     if (path.startsWith('/user/data/download/')) {
       const file = files.find(f => path === `/user/data/download/${f.file_id}`);
+      if (file && url.searchParams.get('redirect') === 'true') {
+        res.writeHead(302, {location: `/sandbox/files/${file.file_id}`, 'cache-control': 'no-store'});
+        return res.end();
+      }
       return file ? json(res, {url: `http://${req.headers.host}/sandbox/files/${file.file_id}`}) : json(res, {error: 'Unknown synthetic file'}, 404);
     }
     if (['/user/jwt/keys', '/jwt/keys'].includes(path)) return json(res, { keys: [['synthetic', identity.pem]] });
@@ -79,7 +84,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (path.startsWith('/user/')) {
       if (path === '/user/user') return json(res, { user_id: 1, username: 'synthetic@example.invalid', name: 'Synthetic Developer',
-        email: 'synthetic@example.invalid', is_admin: false, project_access: { 'SYNTHETIC-MM': ['read', 'read-storage'] },
+        email: 'synthetic@example.invalid', is_admin: false, project_access: projectAccess,
         authz: Object.fromEntries(resources.map(r => [r, [{ service: '*', method: 'read' }]])) });
       if (path === '/user/csrf') return json(res, { csrf: 'synthetic-only' });
       if (path === '/user/credentials/cdis/access_token') return json(res, { error: 'Real credentials are not supported' }, 404);

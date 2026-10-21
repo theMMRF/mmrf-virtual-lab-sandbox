@@ -68,6 +68,6 @@ and pseudobulk mean/percent/total expression are derived from those same cells.
   still produce a small or empty group; that should remain visible to an agent.
 - One shared synthetic identity replaces real login/permissions behavior. No
   uploads, notebooks, spatial assays, methylation, production storage access, or
-  biomedical knowledge graph are provided. File downloads are fabricated FASTA.
+  biomedical knowledge graph are provided. File downloads are tiny generated test files in six formats; no S3 or Gen3 CLI transfer service is provided.
 - Public ProteinPaint retains its academic-use license. Its public image needs
   amd64 or Docker emulation. AWS acceptance remains an operator-controlled step.

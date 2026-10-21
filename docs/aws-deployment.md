@@ -1,4 +1,60 @@
-# Operator-controlled AWS deployment
+# Optional operator-controlled AWS deployment
+
+## Choose the hackathon topology first
+
+A full EKS deployment is optional, not a prerequisite for developing the natural
+language interface. AWS supports local agent iteration with `agentcore dev`,
+followed by deployment when needed; see the [AgentCore quickstart](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
+
+| Option | Advantages | Trade-offs |
+| --- | --- | --- |
+| Local platform and local agent/tools; Bedrock calls use the event account | Smallest setup; direct local API access; no public site/domain | Each developer needs Docker capacity; does not demonstrate a hosted Runtime |
+| Local frontend; shared private AWS backend/MCP and hosted AgentCore | Shared APIs accessible to the cloud agent; developer access through a tunnel | Needs private networking, IAM and a backend endpoint; more setup than local development |
+| Entire Compose stack on one private AWS VM; hosted AgentCore in the VPC | One shared dataset; avoids Kubernetes; frontend can also be reached through a local tunnel | VM bootstrap, container lifecycle and private tool access need configuration; this VM launcher is not implemented here |
+| Full EKS stack below | Existing Terraform/Helm handoff; closer to a cluster deployment | Most infrastructure and teardown work; live-account validation still required |
+
+**A local agent can call local APIs. A hosted agent cannot reach a developer's
+localhost without a network connection or a separately designed client-side tool
+bridge.** Moving only the frontend local does not establish cloud-to-tool access.
+AgentCore supports [VPC access to private APIs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-vpc.html);
+developer tunnels can use [Systems Manager Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html).
+Neither requires a publicly accessible frontend. EKS ClusterIP addresses are not
+themselves VPC endpoints for an external AgentCore runtime: a private service
+endpoint and explicit network-policy access would still be needed. The chart's
+current policy permits only its own application pods and DNS, not AgentCore.
+
+For the deadline, the working local environment is the baseline. If the event
+requires hosted AgentCore, agree the private backend/tool connection with AWS or
+the builders before selecting a deployment path. MCP/agent implementation belongs
+to the hackathon challenge; this repository does not implement or provision it.
+
+Questions to send AWS (the first two determine whether hosting is necessary):
+
+1. Must the submission run in hosted AgentCore Runtime, or is a local agent using
+   Bedrock in the event account acceptable?
+2. Must judges open an independent URL, or is a team-led local demo acceptable?
+3. What comes ready in the event account: model access, IAM roles, a VPC and an
+   approved way to reach private APIs/MCP servers? Is a temporary tunnel allowed?
+4. Who is expected to deploy the supplied application and connect the new agent
+   tools: our team before the event, the hackathon builders, or AWS support?
+
+The invitation's AWS-account access alone does not answer those questions. Until
+confirmed, preserve the tested local launch as the handoff baseline. If hosted
+Runtime is required, the preferred follow-up is a shared private Compose host
+with an explicitly reachable private tool endpoint and developer access through
+Session Manager. That is a proposed deployment, not a tested launcher in this
+repository. A developer port-forward solves browser access only; it does not
+provide the cloud runtime with access to a laptop's localhost. TLS and tool
+authentication requirements still depend on the chosen MCP/Gateway transport.
+
+**Landing Zone Accelerator account note:** the Terraform below always creates a
+new VPC with a fixed `10.86.0.0/16` CIDR. It does not discover or reuse existing
+VPCs, LZA routing, shared subnets or organization guardrails. An operator must
+review the account's existing network/configuration before applying it. Do not
+import, replace or delete LZA-managed infrastructure using this state. No account
+inspection or integration with the user's LZA configuration has been performed.
+
+## Full EKS deployment runbook
 
 The operator runs every AWS command in this guide. Preparation used local Docker,
 Helm rendering and Terraform mock tests; **no live AWS deployment has been tested**.

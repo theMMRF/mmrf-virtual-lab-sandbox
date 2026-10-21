@@ -6,6 +6,11 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
 
 ## Passed locally
 
+- Two navigable synthetic projects have exact case/file/category summaries.
+  Repository facets cover multiple strategies, categories, types and workflows
+  and six formats (FASTA, BAM, FASTQ, TSV, VCF and CSV). Browser checks download
+  sample sheets, manifests, metadata and a BAM through the actual website;
+  API checks verify byte-identical generated downloads for all six formats.
 - Seed-only generator determinism and case/sample/file/VCF/SQLite ID integrity.
 - Ephemeral signing keys, invalid/tampered/cross-instance token rejection and
   intersection of Gen3 cohort selection with native ProteinPaint filtering.
@@ -14,7 +19,7 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
 - Clean Docker Compose build/start/health checks using real Elasticsearch, Guppy,
   Gen3 analysis and public ProteinPaint services. No Gen3 credential file.
 - HTTP integration on the expanded default seed: 1,000 cases, female cohort 500,
-  2,132 case-level variants across six genes, and 80,000 generated single cells.
+  2,908 case-level occurrences sharing 48 invented variants across six genes, and 80,000 generated single cells.
   Case/sample membership and independently computed mutation totals agree across
   Guppy, analysis and ProteinPaint. Fabricated FASTA, reference sequence, survival,
   bulk expression, actual Wilcoxon differential expression and volcano rendering pass.
@@ -24,9 +29,15 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
   the public analysis service's object-field survival queries. Generator checks
   also require at least ten mutated
   and ten unmutated cases for every fixture gene in each sex/race combination.
+- Recurring SSM IDs retain all carrier samples in the indexed VCF and Gen3
+  mutation index. The common KRAS hotspot returns full carrier/noncarrier survival
+  curves in ordinary demographic cohorts. Annotation-filter and unfiltered
+  mutation counts are checked independently against fixture membership.
 - Single-cell meta-analysis API returns exactly 40,000 cells for a 500-case female
   cohort, including MYC expression coloring. Actual pseudobulk differential
   expression runs against totals derived from those same generated cells.
+  Irregular curved subclusters replace the four round grid clusters; coordinates
+  remain fabricated and are not a biological embedding.
 - Uncolored bulk UMAP is checked against exact cohort membership and an empty
   cohort. A narrow version-checked correction to the public ProteinPaint server
   is required for this mode; see component-inventory.md.
@@ -36,8 +47,8 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
 - Isolated Chromium creates a female/black cohort of 167 cases and verifies
   exact OncoMatrix counts, cohort-scoped repository files and bulk UMAP, a
   13,360-cell Meta analysis, the two visible Correlation buttons, Clinical Data
-  Analysis survival, expression clustering, c-Myc search (57 variants), Genome
-  Browser (52 KRAS-region variants), and Mutation Frequency survival. No failed
+  Analysis survival, expression clustering, c-Myc search, Genome
+  Browser recurring hotspots, and Mutation Frequency gene- and mutation-level survival. No failed
   local HTTP responses or uncaught page errors. A pre-existing localhost login
   cookie remains unchanged. Screenshots are saved under ignored screenshots/.
 - Analytics environment/consent regression tests pass (22 tests). The synthetic
@@ -58,10 +69,14 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
 - Gitleaks scan of publication files: no leaks found. Generated data, source
   contexts, node_modules, state, plans and kubeconfigs are excluded from Git.
 
-The synthetic integration also exposed an existing Gen3 analysis gene-count
-error (subtracting one from a score that already counts affected cases). The
-pinned public source fix and its PR are listed in the handoff. The integration
-checks compare both gene chart and gene table counts with generator output.
+The synthetic integration also exposed Gen3 analysis count errors in gene and
+mutation queries: fixed score baselines and annotation scores affected displayed
+case counts. The pinned public source keeps eligibility constraints out of score
+context and counts only matching occurrences. The integration checks compare
+gene charts, gene tables and mutation tables with generator output, with and
+without annotation filters. A separate real-ES recurring-variant regression test
+is committed in the analysis PR. Repository exports also use the separate API
+fix accepting explicit empty filters and refusing oversized all-case lookups.
 
 ## Limits and remaining acceptance gates
 
