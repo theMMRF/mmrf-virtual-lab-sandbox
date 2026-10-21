@@ -75,9 +75,11 @@ the shared synthetic identity gateway publicly. See [Kubernetes port forwarding]
 and [EKS kubeconfig authentication](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html).
 
 For a shared browser-only hackathon URL, add and test an authenticated HTTPS
-entry point separately. A temporary subdomain with an operator-managed certificate,
-or an approved private access service, is a suitable follow-up. That is not
-included in this deployment. Public HTTP exposes application traffic to tampering,
+entry point separately. A custom domain/certificate is not a prerequisite:
+[CloudFront can serve HTTPS on its default AWS-owned hostname](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-alternate-domain-names.html).
+Configuring that distribution, access control and correct application routing is
+still additional work and is not included here. An approved private access
+service is another follow-up option. Public HTTP exposes application traffic to tampering,
 and some browser capabilities require a secure context. Loopback HTTP receives
 special treatment that a public HTTP IP address does not; see [secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts).
 
@@ -91,6 +93,12 @@ selected AWS profile already authenticates as that role. IAM Identity Center/SSO
 is fine; use the full IAM role ARN, including any role path, not an STS
 `assumed-role` session ARN. Terraform grants that role cluster administration;
 application pods receive no AWS credentials or Kubernetes service-account token.
+The operator also needs the IAM actions used by Terraform, including
+`iam:CreateRole`, `iam:AttachRolePolicy` and `iam:PassRole`, and the corresponding
+cleanup permissions for the resources it creates. EKS can also require
+`iam:CreateServiceLinkedRole` when its service-linked role is absent. These are
+examples of required permissions, not a complete IAM policy; account guardrails
+can still prevent provisioning.
 
 Requirements: Terraform >=1.9 and <2, AWS CLI v2, Docker with Buildx and Compose
 >=2.17, Helm 3, Python >=3.9, Git, and kubectl compatible with EKS 1.34 (1.33–1.35).
@@ -103,7 +111,12 @@ The defaults create one EKS 1.34 control plane, one m6i.xlarge worker (4 vCPU,
 repositories. There is no NAT gateway or load balancer. EKS, EC2, disk, public IPv4,
 registry storage and data transfer can incur charges until removed. EKS 1.34
 standard support ends December 2, 2026; check the [current EKS calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html)
-before a later event to avoid extended-support charges.
+before a later event. To use a newer version that AWS lists in standard support,
+add `"kubernetes_version": "YOUR_SUPPORTED_VERSION"` to the JSON object in step 3,
+replacing the placeholder, before planning. Use a compatible kubectl version
+(within one minor version of that selection). Terraform retains the `1.34`
+default and `STANDARD` support policy; it does not automatically select a version
+or opt into extended support.
 
 Use a terminal dedicated to this test. Replace the four example values below:
 
@@ -194,6 +207,7 @@ not import private GitOps configuration or existing clusters/buckets/state.
 
 ```sh
 terraform apply sandbox.tfplan
+mkdir -p ../generated
 terraform output -json image_repositories > ../generated/ecr-repositories.json
 terraform output -raw cluster_name > ../generated/aws-cluster-name
 cd ..
