@@ -107,7 +107,7 @@ resource "aws_cloudfront_vpc_origin" "sandbox" {
       quantity = 1
     }
   }
-  depends_on = [aws_lb_listener.entry, aws_vpc_security_group_ingress_rule.cloudfront, aws_route_table_association.origin]
+  depends_on = [aws_lb_listener.entry, aws_vpc_security_group_ingress_rule.cloudfront, aws_route_table_association.origin, aws_internet_gateway.sandbox]
 }
 resource "aws_cloudfront_distribution" "sandbox" {
   count               = var.enable_https ? 1 : 0

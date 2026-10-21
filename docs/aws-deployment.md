@@ -56,7 +56,7 @@ Use an empty **dedicated sandbox account** and an AWS CLI profile that assumes
 an IAM role in it. Do not use a dev/prod profile. Required local tools:
 
 - Python 3.9+, Git, AWS CLI v2, Terraform >=1.9 and <2, Docker/Compose >=2.17,
-  Helm 3, kubectl 1.34–1.36 for the default EKS 1.35.
+  Helm 3 or 4, kubectl 1.34–1.36 for the default EKS 1.35.
 - Docker memory at least 12 GiB and at least 30 GiB free disk. All application
   images are built as linux/amd64; Apple Silicon uses emulation.
 - For optional browser checks, Node/npm and Playwright Chromium.

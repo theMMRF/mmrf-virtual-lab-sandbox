@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import Mock, patch
 
 
@@ -25,6 +26,28 @@ CONFIG = {"profile": "unit-test", "account_id": "123456789012", "region": "us-ea
 
 
 class LauncherTests(unittest.TestCase):
+    def test_live_acceptance_refuses_anonymous_application_access(self):
+        opener = Mock()
+        credentials = {"origin": "https://unitfixture.cloudfront.net", "username": "sandbox", "password": "unit-test-only"}
+        with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
+            with self.assertRaisesRegex(ValueError, "reachable without team authentication"):
+                launcher.check_site(credentials, attempts=1)
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_live_acceptance_requires_expected_authenticated_fixture(self):
+        opener = Mock()
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.read.return_value = b'{"synthetic":true,"cases":1000}'
+        opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None), response]
+        credentials = {"origin": "https://unitfixture.cloudfront.net", "username": "sandbox", "password": "unit-test-only"}
+        with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
+            launcher.check_site(credentials, attempts=1)
+        request = opener.open.call_args_list[1].args[0]
+        self.assertEqual(request.full_url, credentials["origin"] + "/sandbox/status")
+        self.assertTrue(request.get_header("Authorization").startswith("Basic "))
+
     def test_wrong_account_prevents_build_plan_and_apply(self):
         operator = launcher.Operator(CONFIG)
         operator.aws = Mock(return_value={"Account": "999999999999", "Arn": "test"})

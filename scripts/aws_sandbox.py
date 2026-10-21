@@ -292,9 +292,11 @@ def check_site(credentials, attempts=60):
     for attempt in range(attempts):
         try:
             try:
-                opener.open(origin + "/sandbox/status", timeout=20)
+                response = opener.open(origin + "/sandbox/status", timeout=20)
+                response.close()
                 raise ValueError("STOP: hosted application is reachable without team authentication")
             except urllib.error.HTTPError as error:
+                error.close()
                 if error.code != 401:
                     raise
             request = urllib.request.Request(origin + "/sandbox/status", headers={"Authorization": "Basic " + basic})
