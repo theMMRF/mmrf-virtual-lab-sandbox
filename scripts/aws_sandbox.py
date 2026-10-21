@@ -209,7 +209,7 @@ class Operator:
     def status(self):
         self.identity()
         self.connect_cluster()
-        self.kube("get", "pods", "services", "-n", NAMESPACE)
+        self.kube("get", "pods,services", "-n", NAMESPACE)
         outputs = self.outputs()
         health = self.aws("elbv2", "describe-target-health", "--target-group-arn", outputs["target_group_arn"])
         print("ALB target states:", [entry["TargetHealth"]["State"] for entry in health["TargetHealthDescriptions"]])
