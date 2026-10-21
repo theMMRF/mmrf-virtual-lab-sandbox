@@ -40,6 +40,13 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
   Browser (52 KRAS-region variants), and Mutation Frequency survival. No failed
   local HTTP responses or uncaught page errors. A pre-existing localhost login
   cookie remains unchanged. Screenshots are saved under ignored screenshots/.
+- Diagnosis age API comparisons use ten-year bins, with each bin's case IDs
+  independently checked against the generator. The browser compares two
+  demographic cohorts, checks every age bucket's counts, clicks a bucket to
+  retrieve its exact members, and displays the clinical age histogram in years. Every clinical age bin is
+  checked against generated cases, including those at the maximum age.
+  The frontend fix has 24 regression tests; dictionary validation rules are
+  unchanged by its separate description correction.
 - Helm lint and rendering pass with the expanded-fixture configuration. Earlier
   Kubernetes server-side dry-run and startup tests used a separate kind cluster;
   frontend, identity, Guppy, analysis, Elasticsearch and the seed watcher started.
@@ -54,6 +61,11 @@ pinned public source fix and its PR are listed in the handoff. The integration
 checks compare both gene chart and gene table counts with generator output.
 
 ## Limits and remaining acceptance gates
+
+- One frontend rebuild while the stack was running caused Docker to OOM-kill
+  Elasticsearch. Restarting it recovered the existing synthetic volume. The
+  local-development guide documents rebuilding with services stopped when Docker
+  memory is constrained.
 
 - A full local Helm rollout could not finish on the ARM node: the upstream
   ProteinPaint image is amd64-only. Compose ran it successfully through Docker

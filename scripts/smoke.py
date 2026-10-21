@@ -155,6 +155,23 @@ if len(cases) >= 1000:
     assert len(compared['results']) == 2 and all(len(curve['donors']) >= 100 for curve in compared['results'])
     print('PASS: two-filter demographic cohorts retain >=100 survival cases per curve')
 
+# Diagnosis age is an API value in years; use exactly matching half-open bins.
+age_field = 'diagnoses.age_at_diagnosis'
+comparison = call('/analysis/v0/compare/facets', {
+    'doc_type': 'case_centric', 'cohort1': {}, 'cohort2': {},
+    'facets': [age_field], 'interval': {age_field: 10},
+})
+for bucket in comparison['cohort1']['facets'][age_field]['buckets']:
+    lower, upper = bucket['key']
+    expected = {c['case_id'] for c in cases if lower <= c['diagnoses'][0]['age_at_diagnosis'] < upper}
+    assert bucket['count'] == len(expected)
+    data = call('/guppy/graphql', {
+        'query': 'query($filter:JSON){CaseCentric_case_centric(first:1000,filter:$filter){case_id}}',
+        'variables': {'filter': {'and': [{'>=': {age_field: lower}}, {'<': {age_field: upper}}]}},
+    })['data']['CaseCentric_case_centric']
+    assert {c['case_id'] for c in data} == expected
+print('PASS: ten-year age comparison buckets and cohort filters return identical cases')
+
 groups = [{'name': gender, 'values': [{'sampleId': i + 1} for i, c in enumerate(cases) if c['gender'] == gender]} for gender in ('female', 'male')]
 de = {'genome': 'hg38', 'dslabel': 'MMRF', 'samplelst': {'groups': groups}, 'method': 'wilcoxon',
       'min_count': 10, 'min_total_count': 15, 'cpm_cutoff': 0,

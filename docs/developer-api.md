@@ -62,3 +62,14 @@ overwrite edits, so use Compose directly while editing. Keep durable application
 changes in that service's own repository/PR and update `sources.json` to its
 public commit for reproducible builds. Never replace a source URL with a private
 repository for a shareable challenge build.
+
+## Diagnosis age units
+
+`diagnoses.age_at_diagnosis` is in **years**, matching the operator-confirmed
+current MMRF API contract. Do not divide this value by 365.25. The inherited
+dictionary wording was day-based; its clarification and the frontend correction
+are separate PRs: [dictionary #7](https://github.com/theMMRF/mmrf_dictionary/pull/7)
+and [frontend #42](https://github.com/theMMRF/mmrf-data-commons/pull/42).
+The sandbox pins a frontend containing that correction. Comparison bins use
+`[40, 50)` for ages 40 through just below 50; follow-up/survival durations retain
+their own day-based API fields. No records are converted or reindexed.

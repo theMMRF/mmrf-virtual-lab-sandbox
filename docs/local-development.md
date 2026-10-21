@@ -27,6 +27,12 @@ This is a local developer environment, not an air-gapped or multi-tenant system.
 
 For frontend changes, edit the disposable public `.sources/frontend` checkout,
 then run `docker compose build frontend && docker compose up -d --wait frontend`.
+
+A frontend rebuild while the whole stack is running can exceed Docker's memory
+budget. If that happens, preserve the synthetic volumes and rebuild with the
+services stopped: `docker compose stop`, `docker compose build frontend`, then
+`docker compose up -d --wait`. Do not use `down --volumes` for this recovery.
+
 Use Compose directly while editing: the source-fetch helper deliberately refuses
 to overwrite a dirty checkout. Keep durable application changes in the frontend's
 own repository/PR; pin the resulting public commit in `sources.json`. Your normal

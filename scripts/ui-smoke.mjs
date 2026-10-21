@@ -86,6 +86,64 @@ try {
   await expect(page.locator('body')).not.toContainText('Not enough survival data');
   await capture('mutation-frequency');
   console.log('PASS: selected-cohort expression clustering, ProteinPaint gene view, and mutation frequency');
+  // Keep the production age-unit regression covered in the synthetic launch path.
+  await open('CohortBuilder');
+  async function renameCohort(name) {
+    await page.getByRole('button',{name:'Rename cohort',exact:true}).click();
+    await page.getByPlaceholder('Enter new name').fill(name);
+    await page.getByPlaceholder('Enter new name').press('Enter');
+  }
+  await renameCohort('Synthetic women');
+  await page.getByRole('button',{name:'Add cohort',exact:true}).click();
+  await renameCohort('Synthetic men');
+  await page.getByRole('tab',{name:'Demographic',exact:true}).click();
+  await page.getByRole('checkbox',{name:'male',exact:true}).check();
+  await page.getByRole('checkbox',{name:'white',exact:true}).check();
+  const men = cases.filter(c => c.gender === 'male' && c.race === 'white');
+  await expect(page.locator('body')).toContainText(new RegExp(`${men.length}\\s*CASES`,'i'),{timeout:30000});
+  await open('CohortComparison');
+  await page.getByTestId('button-Synthetic women-cohort-comparison').check();
+  const ageResponse = page.waitForResponse(r=>r.url().endsWith('/analysis/v0/compare/facets')&&r.request().method()==='POST');
+  await page.getByTestId('button-run-cohort-comparison').click();
+  const ageResult = await ageResponse;
+  expect(ageResult.request().postDataJSON().interval).toEqual({'diagnoses.age_at_diagnosis':10});
+  const ageCard = page.getByTestId('card-Age At Diagnosis-cohort-comparison');
+  await expect(ageCard.getByTestId('text-analysis-40 to <50 years')).toBeVisible({timeout:30000});
+  for (const row of await ageCard.locator('tbody tr').all()) {
+    const values = await row.locator('td').allTextContents();
+    const lower = parseFloat(values[0]);
+    for (const [i, group] of [men, female].entries()) {
+      const expected = group.filter(c=>c.diagnoses[0].age_at_diagnosis>=lower&&c.diagnoses[0].age_at_diagnosis<lower+10);
+      expect(Number(values[1+i*2].replace(/[^0-9]/g,''))).toBe(expected.length);
+    }
+  }
+  await capture('cohort-comparison');
+  await ageCard.screenshot({path:'screenshots/diagnosis-age-buckets.png'});
+  const membership = page.waitForResponse(r=>r.url().endsWith('/analysis/v0/cohorts/query')&&r.request().postData()?.includes('query Case_case'));
+  await ageCard.locator('tbody tr').first().getByTestId('button-save-filtered-cohort').first().click();
+  const members = (await (await membership).json()).data.CaseCentric_case_centric.map(c=>c.case_id).sort();
+  expect(members).toEqual(men.filter(c=>c.diagnoses[0].age_at_diagnosis>=40&&c.diagnoses[0].age_at_diagnosis<50).map(c=>c.case_id).sort());
+  await open('cDave');
+  const ageControl = page.getByTestId('row-field-Age At Diagnosis-cdave');
+  await expect(ageControl).toBeVisible({timeout:30000});
+  await ageControl.getByRole('switch').check();
+  const clinicalAge = page.getByTestId('Age At Diagnosis-card');
+  await expect(clinicalAge).toContainText(/40 to < 50/,{timeout:30000});
+  await expect(clinicalAge.getByText('Days',{exact:true})).toHaveCount(0);
+  const expectedAgeBins = new Set(men.map(c=>Math.floor(c.diagnoses[0].age_at_diagnosis/10)*10));
+  await expect(clinicalAge.locator('tbody tr')).toHaveCount(expectedAgeBins.size);
+  let clinicalTotal = 0;
+  for (const row of await clinicalAge.locator('tbody tr').all()) {
+    const values = await row.locator('td').allTextContents();
+    const lower = parseFloat(values[1]);
+    const expected = men.filter(c=>c.diagnoses[0].age_at_diagnosis>=lower&&c.diagnoses[0].age_at_diagnosis<lower+10).length;
+    await expect.poll(async()=>parseInt(await row.locator('td').nth(2).innerText(),10),{timeout:30000}).toBe(expected);
+    clinicalTotal += expected;
+  }
+  expect(clinicalTotal).toBe(men.length);
+
+  await clinicalAge.screenshot({path:'screenshots/diagnosis-age-clinical.png'});
+  console.log('PASS: comparison age buckets, exact bucket cohort membership, and clinical age histogram use years');
   await writeFile('screenshots/browser-errors.json', JSON.stringify(failures,null,2)+'\n');
   expect(failures).toEqual([]);
   expect((await page.context().cookies(origin)).find(cookie => cookie.name === 'access_token')?.value).toBe(existingCookie);
