@@ -29,6 +29,18 @@ class SyntheticIntegrity(unittest.TestCase):
                 self.assertEqual(len(cases), db.execute('select count(*) from survival').fetchone()[0])
             header = next(line for line in (Path(first) / 'variants.vcf').read_text().splitlines() if line.startswith('#CHROM'))
             self.assertEqual(samples, set(header.split('\t')[9:]))
+            reference = {}
+            for line in (Path(first) / 'synthetic.fa').read_text().splitlines():
+                if line.startswith('>'):
+                    chrom = line[1:]
+                    reference[chrom] = ''
+                else:
+                    reference[chrom] += line
+            for variant in variants:
+                self.assertEqual(reference[variant['chr']][variant['pos'] - 1], variant['ref'])
+            for line in (Path(first) / 'variants.vcf').read_text().splitlines():
+                if not line.startswith('#'):
+                    self.assertEqual(len(line.split('\t')[7].removeprefix('CSQ=').split('|')), 12)
             for f in files:
                 sequence = (Path(first) / f['file_name']).read_text().splitlines()[1]
                 self.assertEqual(set(sequence), set('ACGT'))

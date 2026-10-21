@@ -102,7 +102,11 @@ def generate(out, count=60, seed=42):
         for chrom in sorted({g[2] for g in GENES}):
             fasta.write(f'>{chrom}\n')
             offset = fasta.tell()
-            sequence = ''.join(rng.choice('ACGT') for _ in range(100000))
+            sequence = [rng.choice('ACGT') for _ in range(100000)]
+            for variant in variants:
+                if variant['chr'] == chrom:
+                    sequence[variant['pos'] - 1] = variant['ref']
+            sequence = ''.join(sequence)
             for start in range(0, len(sequence), 80):
                 fasta.write(sequence[start:start + 80] + '\n')
             fai.write(f'{chrom}\t100000\t{offset}\t80\t81\n')
@@ -188,12 +192,12 @@ def make_vcf(out, cases, variants):
     with (out / "variants.vcf").open("w") as handle:
         handle.write('##fileformat=VCFv4.2\n##source=MMRF-synthetic-generator\n')
         for chrom in sorted({g[2] for g in GENES}):
-            handle.write(f'##contig=<ID={chrom},length=250000000>\n')
+            handle.write(f'##contig=<ID={chrom},length=100000>\n')
         handle.write('##INFO=<ID=CSQ,Number=.,Type=String,Description="Synthetic annotations. Format: Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|EXON|INTRON|HGVSc|HGVSp">\n')
         handle.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
         handle.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t' + '\t'.join(c['sample_id'] for c in cases) + '\n')
         for var in sorted(variants, key=lambda v: (v['chr'], v['pos'])):
-            csq = f"T|missense_variant|MODERATE|{var['symbol']}|{var['gene_id']}|Transcript|{var['gene_id']}|protein_coding|1||||{var['mname']}"
+            csq = f"T|missense_variant|MODERATE|{var['symbol']}|{var['gene_id']}|Transcript|{var['gene_id']}|protein_coding|1|||{var['mname']}"
             genotypes = ['0/1' if c['sample_id'] == var['sample_id'] else './.' for c in cases]
             handle.write(f"{var['chr']}\t{var['pos']}\t.\tA\tT\t100\tPASS\tCSQ={csq}\tGT\t" + '\t'.join(genotypes) + '\n')
 
