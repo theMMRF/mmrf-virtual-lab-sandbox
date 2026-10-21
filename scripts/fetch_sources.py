@@ -13,4 +13,5 @@ for name, source in json.loads((root / "sources.json").read_text()).items():
             raise SystemExit(f"Refusing to overwrite modified source context: {dest}")
         continue
     subprocess.run(["git", "clone", "--no-checkout", "--filter=blob:none", source["url"], str(dest)], check=True)
+    subprocess.run(["git", "-C", str(dest), "fetch", "--depth=1", "origin", source["commit"]], check=True)
     subprocess.run(["git", "-C", str(dest), "checkout", "--detach", source["commit"]], check=True)

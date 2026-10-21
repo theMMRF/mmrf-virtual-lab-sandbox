@@ -44,9 +44,25 @@ try {
   await open('SC');
   await expect(page.getByText(female[0].sample_id,{exact:true})).toBeVisible({timeout:30000});
   await page.getByText(female[0].sample_id,{exact:true}).click();
-  await page.waitForTimeout(2500);
+  await page.getByText('UMAP',{exact:true}).click();
+  await expect(page.getByText('80 cells',{exact:true})).toBeVisible({timeout:30000});
+  await page.waitForTimeout(1500);
   await capture('single-cell');
   console.log('PASS: bulk UMAP and single-cell sample selection');
+  await open('GeneExpression');
+  await page.getByRole('button',{name:'Submit',exact:true}).first().click();
+  await expect(page.locator('body')).toContainText(new RegExp(`${female.length}\\s*Samples`),{timeout:60000});
+  await expect(page.locator('svg text').filter({hasText:/^KRAS$/}).first()).toBeVisible();
+  await capture('expression-clustering');
+  await open('ProteinPaint');
+  await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).fill('TP53');
+  await page.getByRole('searchbox',{name:'Gene symbol, position, or alias'}).press('Enter');
+  await expect(page.getByText(`${counts.get('TP53')} variants`,{exact:true})).toBeVisible({timeout:60000});
+  await capture('proteinpaint-gene');
+  await open('MutationFrequency');
+  await expect(page.getByText('Synthetic KRAS',{exact:true})).toBeVisible({timeout:30000});
+  await capture('mutation-frequency');
+  console.log('PASS: selected-cohort expression clustering, ProteinPaint gene view, and mutation frequency');
   await writeFile('screenshots/browser-errors.json', JSON.stringify(failures,null,2)+'\n');
   expect(failures).toEqual([]);
-} catch(error) {await capture('failure'); console.error(await page.locator('body').innerText()); throw error;} finally {await browser.close();}
+} catch(error) {await capture('failure'); console.error(await page.locator('body').innerText()); console.error(failures); throw error;} finally {await browser.close();}

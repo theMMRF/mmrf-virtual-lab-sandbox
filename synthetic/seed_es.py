@@ -31,7 +31,7 @@ def mapping(value):
     if isinstance(value, dict):
         return {"type": "nested", "properties": {k: mapping(v) for k, v in value.items()}}
     if isinstance(value, bool):
-        return {"type": "keyword"}
+        return {"type": "boolean"}
     if isinstance(value, int):
         return {"type": "integer"}
     if isinstance(value, float):
@@ -54,6 +54,8 @@ def normalize_types(props):
             normalize_types(value["properties"])
         if key in ('project', 'transcript', 'annotation') and 'properties' in value:
             value['type'] = 'object'
+        if key == 'transcript' and 'gene' in value.get('properties', {}):
+            value['properties']['gene']['type'] = 'object'
         elif key.startswith("days_to_") or key in ("age_at_diagnosis", "age_at_index", "file_size", "start_position", "end_position", "case_count", "file_count"):
             props[key] = {"type": "integer"}
 
@@ -103,7 +105,7 @@ if __name__ == "__main__":
         case['gene'] = []
     occurrences = []
     for number, v in enumerate(variants):
-        gene = {"gene_id": v["gene_id"], "symbol": v["symbol"], "name": "Synthetic " + v["symbol"], "biotype": "protein_coding", "is_cancer_gene_census": False}
+        gene = {"gene_id": v["gene_id"], "symbol": v["symbol"], "name": "Synthetic " + v["symbol"], "biotype": "protein_coding", "is_cancer_gene_census": True}
         mutation = {"ssm_id": f"SYNTH-SSM-{number:04d}", "chromosome": v["chr"], "start_position": v["pos"],
                     "end_position": v["pos"], "reference_allele": v["ref"], "tumor_allele": v["alt"],
                     "mutation_type": "Simple Somatic Mutation", "genomic_dna_change": f"{v['chr']}:g.{v['pos']}A>T"}

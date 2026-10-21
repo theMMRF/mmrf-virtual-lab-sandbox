@@ -59,7 +59,7 @@ def generate(out, count=60, seed=42):
                 "auth_resource_path": "/programs/SYNTHETIC/projects/MM", "authz": ["/programs/SYNTHETIC/projects/MM"],
                 "samples": [sample], "sample_id": sid, "sample_ids": [sid], "synthetic": True}
         case["demographic"] = {k: case[k] for k in ["gender", "race", "ethnicity", "vital_status", "days_to_birth", "days_to_death"]}
-        case["diagnoses"] = [{"age_at_diagnosis": age * 365, "days_to_last_follow_up": days,
+        case["diagnoses"] = [{"age_at_diagnosis": age, "days_to_last_follow_up": days,
                                "primary_diagnosis": case["primary_diagnosis"], "treatments": [{"therapeutic_agents": case["therapeutic_agents"]}]}]
         for path, spec in COHORT_FIELDS.items():
             value = rng.randint(1, 20) if spec['type'] in ('numeric_range', 'days') else rng.choice(['Synthetic A', 'Synthetic B'])

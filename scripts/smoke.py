@@ -80,6 +80,11 @@ chart = call('/analysis/v0/genomic/gene_frequency_chart', {'cohort_filter': coho
 table = call('/analysis/v0/genomic/gene_table', {'cohort_filter': cohort_filter})
 assert {g['symbol']: g['numCases'] for g in chart['data']} == {g: len(v) for g, v in expected.items()}
 assert {g['symbol']: g['case_count'] for g in table['genes']} == {g: len(v) for g, v in expected.items()}
+for path, items, count_field in [('gene_frequency_chart', 'data', 'numCases'), ('gene_table', 'genes', 'case_count')]:
+    filtered = call('/analysis/v0/genomic/' + path, {'cohort_filter': cohort_filter, 'gene_filter': {'in': {'is_cancer_gene_census': ['true']}}})
+    assert {g['symbol']: g[count_field] for g in filtered[items]} == {g: len(v) for g, v in expected.items()}
+assert all(g['ssm_count'] > 0 for g in table['genes'])
+
 mutations = call('/analysis/v0/genomic/ssm_table', {'cohort_filter': cohort_filter})
 assert mutations['ssmsTotal'] == sum(v['case_id'] in {c['case_id'] for c in female} for v in variants)
 assert all(s['score'] == 1 for s in mutations['ssms'])

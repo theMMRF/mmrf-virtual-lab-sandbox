@@ -67,7 +67,8 @@ generated case throughout Gen3, ProteinPaint, repository metadata, and generated
 FASTA files. The generator accepts a seed and count, never a data input. Gene
 symbols are public reference identifiers, but gene models, coordinates, variants,
 reference sequence, expression, survival, UMAP coordinates, and cell values are
-fabricated. The `hg38` dataset key is retained for frontend compatibility; these
+fabricated. The fixture genes are KRAS, NRAS, TP53, BRAF and DIS3; use those
+symbols when testing gene search. The `hg38` dataset key is retained for frontend compatibility; these
 fixtures do **not** represent the real human genome.
 
 The ProteinPaint image generates indexed BCF and CNV files, a term database,

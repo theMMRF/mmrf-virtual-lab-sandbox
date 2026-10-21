@@ -20,8 +20,9 @@ provisioning is explicitly an operator acceptance gate in the AWS runbook.
   calculation and volcano rendering on random synthetic count matrices.
 - Isolated Playwright Chromium: create the female cohort through Cohort Builder,
   carry it into OncoMatrix and check every gene count against the generated
-  variants, browse repository metadata, view bulk UMAP, select a single-cell
-  sample. No failed local HTTP responses or uncaught page errors in this test.
+  variants, browse repository metadata, view bulk UMAP, render an 80-cell single-cell
+  UMAP, launch selected-cohort expression clustering, search TP53 in ProteinPaint,
+  and render Mutation Frequency. No failed local HTTP responses or uncaught page errors in this test.
 - Separate browser checks: expression clustering Submit renders a 60-sample,
   five-gene matrix; ProteinPaint TP53 search renders 25 fabricated variants.
 - Helm lint and Kubernetes server-side dry-run against an isolated kind cluster.
