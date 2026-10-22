@@ -21,7 +21,7 @@ Docker Desktop runs it through emulation on Apple Silicon.
 python3 scripts/fetch_sources.py
 python3 synthetic/generate.py
 docker compose build
-docker compose up -d
+docker compose up -d --wait --wait-timeout 300
 python3 scripts/smoke.py
 ```
 
@@ -43,21 +43,46 @@ to overwrite edited copies. To develop an existing service, edit its source
 checkout and rebuild that service, or run its normal development command against
 the sandbox's local API. No application source is vendored in this repository.
 
+For repeatable browser tests and screenshots (a fresh headless Chromium profile):
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:ui
+```
+
+Results are written to ignored `screenshots/`. The UI test creates a demographic
+cohort and verifies its mutation counts against the generator output.
+
+For the difference from your regular frontend workflow and suggested manual checks,
+see [local development modes](docs/local-development.md).
+
 ## Fixtures and contracts
 
 ```sh
-python3 synthetic/generate.py --cases 60 --seed 42
+python3 synthetic/generate.py --cases 1000 --seed 42
 node --test tests/*.test.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 `SYNTH-CASE-0001`, `SYNTH-SAMPLE-0001`, and `SYNTH-FILE-0001` identify the same
 generated case throughout Gen3, ProteinPaint, repository metadata, and generated
-FASTA files. The generator accepts a seed and count, never a data input. Gene
+test files. The generator accepts a seed and count, never a data input. Gene
 symbols are public reference identifiers, but gene models, coordinates, variants,
 reference sequence, expression, survival, UMAP coordinates, and cell values are
-fabricated. The `hg38` dataset key is retained for frontend compatibility; these
+fabricated. The fixture genes are KRAS, NRAS, TP53, BRAF, DIS3 and MYC; use those
+symbols when testing gene search. The `hg38` dataset key is retained for frontend compatibility; these
 fixtures do **not** represent the real human genome.
+
+The default seed (42) has 1,000 cases split across two projects, 2,908 mutation occurrences
+sharing 48 invented variants across six genes, and 80,000 synthetic single cells.
+File facets span WGS, WXS, RNA-Seq and scRNA-Seq, with FASTA, BAM, FASTQ, TSV, VCF
+and CSV test files and multiple categories/workflows. Recurring hotspots and
+mutation classes make cohort comparisons useful; they are not clinical models.
+Single-cell coordinates use irregular curved subclusters, not measured embeddings. Balanced demographic categories keep ordinary
+sex/race cohorts above the existing ten-case survival threshold. These are
+demonstration choices, not estimates of real demographics or mutation prevalence.
+MYC also resolves through c-Myc, ENSG00000136997, ENST00000621592, and NM_002467.
 
 The ProteinPaint image generates indexed BCF and CNV files, a term database,
 synthetic gene tracks, bulk expression/count matrices, bulk UMAP, and single-cell
@@ -77,7 +102,8 @@ storage; all developers share the synthetic identity.
 
 See [AWS deployment](docs/aws-deployment.md) for operator-controlled provisioning,
 image publishing, Helm deployment, checks, and teardown. Local Kubernetes testing
-uses the same chart with a separate kind cluster and kubeconfig.
+uses the same chart with a separate kind cluster and kubeconfig; see
+[local Kubernetes](docs/local-kubernetes.md) for the amd64 requirement.
 
 The Terraform tests use a mocked AWS provider. Passing them or a local Kubernetes
 deployment is not proof that a particular AWS account has the required quotas,
@@ -87,6 +113,9 @@ performed by this project preparation workflow.
 See [component inventory](docs/component-inventory.md) for public/private
 dependencies and [verification](docs/verification.md) for the actual test record.
 
+See [developer API examples](docs/developer-api.md) for cohort selection,
+ProteinPaint, file search/download and local service development.
+
 ## Hackathon boundary
 
 This environment supports building a natural-language interface against existing
@@ -94,7 +123,9 @@ platform actions and APIs. The language interface, MCP servers, multi-agent
 orchestration, and biomedical knowledge graph are challenge/future work, rather
 than part of the environment launcher. Notebooks, file upload, real-data download,
 and production identity federation are excluded. The repository browser downloads
-only generated FASTA files.
+only tiny generated test files; manifests and sample sheets work without S3 or
+Gen3 CLI credentials. BAM fixtures contain a single fabricated unmapped read;
+VCF repository fixtures are valid header-only examples. None is real assay data.
 
 ## Licenses
 

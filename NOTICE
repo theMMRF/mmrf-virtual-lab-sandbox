@@ -8,4 +8,6 @@ their respective copyright notices and licenses.
 ProteinPaint is Copyright St. Jude Children's Research Hospital and distributed
 under its academic-use license. Its container/package licenses remain inside the
 upstream distributions. See https://github.com/stjude/proteinpaint/blob/master/LICENSE.
+The sandbox image applies a version-checked native scatter-filter correction to
+the public ProteinPaint 2.216.0 bundle; its upstream license remains applicable.
 No code from the private theMMRF/ppmmrf repository is redistributed here.

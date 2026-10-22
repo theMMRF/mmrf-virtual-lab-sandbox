@@ -1,0 +1,106 @@
+name: mmrf-synthetic
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.29@sha256:3f55a7f6f29b95345dc33808d6e914f81d125d4ca90a414e26c81a3521400980
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    volumes: [es-data:/usr/share/elasticsearch/data]
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS http://localhost:9200/_cluster/health || exit 1']
+      interval: 5s
+      retries: 30
+  seed:
+    image: mmrf-sandbox/seed:local
+    build: {context: ., dockerfile: docker/seed.Dockerfile}
+    command: [python, /scripts/seed_es.py]
+    volumes: ['./synthetic:/scripts:ro', './generated:/data', './config:/config:ro']
+    depends_on:
+      elasticsearch: {condition: service_healthy}
+  guppy:
+    image: mmrf-sandbox/guppy:local
+    build: {context: .sources/guppy, dockerfile: ../../docker/guppy.Dockerfile}
+    environment:
+      GEN3_ES_ENDPOINT: http://elasticsearch:9200
+      GEN3_ARBORIST_ENDPOINT: http://identity:8080
+      GUPPY_CONFIG_FILEPATH: /data/guppy.json
+      GUPPY_PORT: '8080'
+      METADATA_AUTH_RESOURCE: /mmrf_metadata
+      TIER_ACCESS_LEVEL: private
+    volumes: ['./generated:/data:ro']
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/_status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+    depends_on:
+      seed: {condition: service_completed_successfully}
+  analysis:
+    image: mmrf-sandbox/analysis:local
+    build: {context: .sources/analysis, dockerfile: ../../docker/analysis.Dockerfile}
+    environment:
+      GEN3_ES_ENDPOINT: http://elasticsearch:9200
+      ES_ENABLED: 'true'
+      ES_CASE_CENTRIC_INDEX: sandbox_case_centric
+      ES_CASE_INDEX: sandbox_case
+      ES_FILE_INDEX: sandbox_file
+      ES_PROJECT_INDEX: sandbox_project
+      ES_GENE_CENTRIC_INDEX: sandbox_gene_centric
+      ES_SSM_CENTRIC_INDEX: sandbox_ssm_centric
+      ES_SSM_OCCURRENCE_INDEX: sandbox_ssm_occurrence_centric
+      ES_CNV_CENTRIC_INDEX: sandbox_cnv_centric
+      ES_CNV_OCCURRENCE_INDEX: sandbox_cnv_occurrence_centric
+      CASE_INDEX: case
+      FILE_INDEX: file
+      ARBORIST_URL: http://identity:8080
+      GUPPY_URL: http://guppy:8080
+      DEPLOYMENT_TYPE: sandbox
+      HOSTNAME: http://identity:8080
+      ENABLED_ROUTES: basic,cohort,cohorts,genomic,cases,files,survival,compare,gene_expression
+      GENE_EXPRESSION_ENABLED: 'false'
+      GENE_EXPRESSION_SQLITE_PATH: ''
+      GENE_EXPRESSION_DATA_DIR: ''
+    depends_on:
+      seed: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/_status')"]
+      interval: 5s
+      retries: 30
+  proteinpaint:
+    image: mmrf-sandbox/proteinpaint:local
+    platform: linux/amd64
+    build: {context: ., dockerfile: proteinpaint/Dockerfile}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3000/healthcheck').then(r=>r.json()).then(v=>{if(v.dsSummary?.done!==1)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+  frontend:
+    image: mmrf-sandbox/frontend:local
+    build:
+      context: .sources/frontend
+      dockerfile: ../../docker/frontend.Dockerfile
+      additional_contexts: {sandbox: .}
+    environment:
+      GEN3_FENCE_SERVICE: http://identity:8080/user
+      GEN3_AUTHZ_SERVICE: http://identity:8080
+      GEN3_ANALYSIS_API: http://identity:8080/analysis/v0
+      TERMS_BFF_ORIGIN: http://frontend:3000
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3000/Login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+  identity:
+    image: mmrf-sandbox/identity:local
+    build: {context: ., dockerfile: docker/identity.Dockerfile}
+    ports: ['127.0.0.1:3080:8080']
+    environment:
+      SYNTHETIC_SANDBOX: '1'
+      PORT: '8080'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/sandbox/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+    depends_on:
+      seed: {condition: service_completed_successfully}
+volumes:
+  es-data:

@@ -1,0 +1,109 @@
+{{- range $name, $image := .Values.images }}
+{{- if ne $name "seed" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+spec:
+  # A single ephemeral signing authority; replicas would issue unrelated keys.
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/instance: {{ $.Release.Name }}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/instance: {{ $.Release.Name }}}
+      {{- if eq $name "guppy" }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") $ | sha256sum }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- if or (eq $name "guppy") (eq $name "analysis") }}
+      initContainers:
+        - name: wait-for-synthetic-data
+          image: {{ $.Values.waitImage | quote }}
+          command: [sh, -c, 'until curl -fsS http://elasticsearch:9200/sandbox_seed_complete/_count; do sleep 3; done']
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          resources:
+{{ (index $.Values.resources $name | default $.Values.resources.default) | toYaml | indent 12 }}
+          env:
+          {{- if eq $name "identity" }}
+            - {name: SYNTHETIC_SANDBOX, value: '1'}
+            - {name: PORT, value: '8080'}
+          {{- else if eq $name "frontend" }}
+            - {name: GEN3_FENCE_SERVICE, value: 'http://identity:8080/user'}
+            - {name: GEN3_AUTHZ_SERVICE, value: 'http://identity:8080'}
+            - {name: GEN3_ANALYSIS_API, value: 'http://identity:8080/analysis/v0'}
+            - {name: TERMS_BFF_ORIGIN, value: 'http://frontend:3000'}
+          {{- else if eq $name "guppy" }}
+            - {name: GEN3_ES_ENDPOINT, value: 'http://elasticsearch:9200'}
+            - {name: GEN3_ARBORIST_ENDPOINT, value: 'http://identity:8080'}
+            - {name: GUPPY_CONFIG_FILEPATH, value: '/data/guppy.json'}
+            - {name: GUPPY_PORT, value: '8080'}
+            - {name: METADATA_AUTH_RESOURCE, value: '/mmrf_metadata'}
+            - {name: TIER_ACCESS_LEVEL, value: private}
+          volumeMounts:
+            - {name: config, mountPath: /data, readOnly: true}
+          {{- else if eq $name "analysis" }}
+            - {name: GEN3_ES_ENDPOINT, value: 'http://elasticsearch:9200'}
+            - {name: ES_ENABLED, value: 'true'}
+            - {name: ES_CASE_CENTRIC_INDEX, value: sandbox_case_centric}
+            - {name: ES_CASE_INDEX, value: sandbox_case}
+            - {name: ES_FILE_INDEX, value: sandbox_file}
+            - {name: ES_PROJECT_INDEX, value: sandbox_project}
+            - {name: ES_GENE_CENTRIC_INDEX, value: sandbox_gene_centric}
+            - {name: ES_SSM_CENTRIC_INDEX, value: sandbox_ssm_centric}
+            - {name: ES_SSM_OCCURRENCE_INDEX, value: sandbox_ssm_occurrence_centric}
+            - {name: ES_CNV_CENTRIC_INDEX, value: sandbox_cnv_centric}
+            - {name: ES_CNV_OCCURRENCE_INDEX, value: sandbox_cnv_occurrence_centric}
+            - {name: GUPPY_URL, value: 'http://guppy:8080'}
+            - {name: ARBORIST_URL, value: 'http://identity:8080'}
+            - {name: HOSTNAME, value: 'http://identity:8080'}
+            - {name: DEPLOYMENT_TYPE, value: sandbox}
+            - {name: ENABLED_ROUTES, value: 'basic,cohort,cohorts,genomic,cases,files,survival,compare,gene_expression'}
+            - {name: GENE_EXPRESSION_ENABLED, value: 'false'}
+            - {name: GENE_EXPRESSION_SQLITE_PATH, value: ''}
+            - {name: GENE_EXPRESSION_DATA_DIR, value: ''}
+          {{- else if eq $name "elasticsearch" }}
+            - {name: discovery.type, value: single-node}
+            - {name: xpack.security.enabled, value: 'false'}
+            - {name: ES_JAVA_OPTS, value: '-Xms1g -Xmx1g'}
+          readinessProbe:
+            httpGet: {path: /_cluster/health, port: 9200}
+            initialDelaySeconds: 10
+          volumeMounts:
+            - {name: es-data, mountPath: /usr/share/elasticsearch/data}
+          {{- else }}
+            []
+          {{- end }}
+          {{- if ne $name "elasticsearch" }}
+          readinessProbe:
+            {{- if eq $name "proteinpaint" }}
+            exec:
+              command: [node, -e, "fetch('http://localhost:3000/healthcheck').then(r=>r.json()).then(v=>{if(v.dsSummary?.done!==1)process.exit(1)}).catch(()=>process.exit(1))"]
+            {{- else }}
+            httpGet:
+              path: {{ index (dict "frontend" "/Login" "guppy" "/_status" "analysis" "/_status" "proteinpaint" "/healthcheck" "identity" "/sandbox/status") $name }}
+              port: {{ index (dict "frontend" 3000 "guppy" 8080 "analysis" 8000 "proteinpaint" 3000 "identity" 8080) $name }}
+            {{- end }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          {{- end }}
+      {{- if eq $name "guppy" }}
+      volumes:
+        - name: config
+          configMap: {name: sandbox-config}
+      {{- else if eq $name "elasticsearch" }}
+      securityContext: {fsGroup: 1000}
+      volumes:
+        # Disposable fixtures are reseeded after cluster restart. No patient storage.
+        - {name: es-data, emptyDir: {}}
+      {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,8 @@
+{
+  "genomes": [{"name": "hg38", "species": "human (synthetic)", "file": "./genome/synthetic.mjs", "datasets": [{"name": "MMRF", "jsfile": "./dataset/synthetic.mjs"}]}],
+  "tpmasterdir": "/home/root/pp/tp",
+  "cachedir": "/home/root/pp/cache",
+  "backend_only": true,
+  "port": 3000,
+  "features": {"disableCustomTrackUI": 1, "disableBlockExperimentFeatures": 1}
+}
