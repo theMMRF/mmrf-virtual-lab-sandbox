@@ -304,7 +304,19 @@ def check_site(credentials, attempts=60):
                 status = json.load(response)
             if not status.get("synthetic") or status.get("cases") != 1000:
                 raise ValueError("HTTPS endpoint did not return the expected synthetic fixture")
-            print("PASS: valid HTTPS, anonymous access denied, authenticated 1,000-case synthetic API")
+            query = "{Project_project{project_id disease_type primary_site summary{case_count file_count data_categories{data_category}}}}"
+            request = urllib.request.Request(origin + "/guppy/graphql",
+                data=json.dumps({"query": query}).encode(),
+                headers={"Authorization": "Basic " + basic, "Content-Type": "application/json"})
+            with opener.open(request, timeout=30) as response:
+                result = json.load(response)
+            projects = (result.get("data") or {}).get("Project_project") or []
+            if result.get("errors") or {p.get("project_id") for p in projects} != {"SYNTHETIC-MM", "SYNTHETIC-RNA"}:
+                raise ValueError("Hosted Projects query failed; verify the Guppy schema and seeded project records")
+            if any(not isinstance(p.get("disease_type"), list) or not isinstance(p.get("primary_site"), list)
+                   or not (p.get("summary") or {}).get("data_categories") for p in projects):
+                raise ValueError("Hosted Projects returned incompatible field shapes")
+            print("PASS: valid HTTPS, authenticated 1,000-case API and two projects; anonymous access denied")
             return
         except (OSError, urllib.error.HTTPError):
             if attempt == attempts - 1:

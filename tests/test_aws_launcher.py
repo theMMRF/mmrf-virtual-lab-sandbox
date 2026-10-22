@@ -25,6 +25,15 @@ CONFIG = {"profile": "unit-test", "account_id": "123456789012", "region": "us-ea
           "operator_cidr": "192.0.2.1/32", "vpc_cidr": "10.86.0.0/16", "kubernetes_version": "1.35"}
 
 
+def json_response(value):
+    """Return a context-managed HTTP response without performing I/O."""
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    response.read.return_value = json.dumps(value).encode()
+    return response
+
+
 class LauncherTests(unittest.TestCase):
     def test_live_acceptance_refuses_anonymous_application_access(self):
         opener = Mock()
@@ -36,17 +45,36 @@ class LauncherTests(unittest.TestCase):
 
     def test_live_acceptance_requires_expected_authenticated_fixture(self):
         opener = Mock()
-        response = Mock()
-        response.__enter__ = Mock(return_value=response)
-        response.__exit__ = Mock(return_value=False)
-        response.read.return_value = b'{"synthetic":true,"cases":1000}'
-        opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None), response]
+        projects = [{"project_id": name, "disease_type": ["Synthetic"], "primary_site": ["Synthetic"],
+                     "summary": {"data_categories": [{"data_category": "Sequencing"}]}}
+                    for name in ["SYNTHETIC-MM", "SYNTHETIC-RNA"]]
+        opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None),
+                                  json_response({"synthetic": True, "cases": 1000}),
+                                  json_response({"data": {"Project_project": projects}})]
         credentials = {"origin": "https://unitfixture.cloudfront.net", "username": "sandbox", "password": "unit-test-only"}
         with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
             launcher.check_site(credentials, attempts=1)
         request = opener.open.call_args_list[1].args[0]
         self.assertEqual(request.full_url, credentials["origin"] + "/sandbox/status")
         self.assertTrue(request.get_header("Authorization").startswith("Basic "))
+        projects_request = opener.open.call_args_list[2].args[0]
+        self.assertEqual(projects_request.full_url, credentials["origin"] + "/guppy/graphql")
+        self.assertEqual(projects_request.get_header("Authorization"), request.get_header("Authorization"))
+
+    def test_live_acceptance_rejects_missing_or_invalid_project_schema(self):
+        """A healthy identity response must not conceal a broken Projects page."""
+        for result in [{"errors": [{"message": "String cannot represent value"}], "data": None},
+                       {"data": {"Project_project": []}},
+                       {"data": {"Project_project": [{"project_id": name, "disease_type": "scalar"}
+                                                     for name in ["SYNTHETIC-MM", "SYNTHETIC-RNA"]]}}]:
+            with self.subTest(result=result):
+                opener = Mock()
+                opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None),
+                                          json_response({"synthetic": True, "cases": 1000}), json_response(result)]
+                credentials = {"origin": "https://unitfixture.cloudfront.net", "username": "sandbox", "password": "unit-test-only"}
+                with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
+                    with self.assertRaisesRegex(ValueError, "Projects"):
+                        launcher.check_site(credentials, attempts=1)
 
     def test_wrong_account_prevents_build_plan_and_apply(self):
         operator = launcher.Operator(CONFIG)
