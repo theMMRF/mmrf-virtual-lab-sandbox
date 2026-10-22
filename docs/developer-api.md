@@ -1,9 +1,7 @@
 # Developer API examples
 
-Use the loopback gateway at `http://localhost:3080` (or an explicitly local
-Kubernetes port-forward). It supplies a fresh synthetic identity automatically;
-there is no credentials-file setup. Do not point these examples at a real commons.
-The backing services are real public Guppy, analysis and ProteinPaint servers.
+Examples use the local gateway at `http://localhost:3080`, which supplies the
+synthetic session and routes requests to Guppy, Analysis, and ProteinPaint.
 
 ## Select a cohort
 
@@ -17,7 +15,6 @@ The default seed returns 500 of 1,000 cases. Cohort creation/naming and the curr
 selected cohort are managed by the existing frontend's browser state. A language
 interface embedded in that frontend should use its cohort actions/selectors;
 `/analysis/v0/cohorts/query` is a query endpoint, not a new cohort-storage API.
-This launcher does not add a persistence API or implement the language interface.
 
 ## Carry the same selection into ProteinPaint
 
@@ -62,16 +59,9 @@ Edit its disposable `.sources/<service>` checkout and run `docker compose build
 and are not vendored into this repository. The source-fetch helper refuses to
 overwrite edits, so use Compose directly while editing. Keep durable application
 changes in that service's own repository/PR and update `sources.json` to its
-public commit for reproducible builds. Never replace a source URL with a private
-repository for a shareable challenge build.
+commit for reproducible builds.
 
-## Diagnosis age units
+## Data units
 
-`diagnoses.age_at_diagnosis` is in **years**, matching the operator-confirmed
-current MMRF API contract. Do not divide this value by 365.25. The inherited
-dictionary wording was day-based; its clarification and the frontend correction
-are separate PRs: [dictionary #7](https://github.com/theMMRF/mmrf_dictionary/pull/7)
-and [frontend #42](https://github.com/theMMRF/mmrf-data-commons/pull/42).
-The sandbox pins a frontend containing that correction. Comparison bins use
-`[40, 50)` for ages 40 through just below 50; follow-up/survival durations retain
-their own day-based API fields. No records are converted or reindexed.
+`diagnoses.age_at_diagnosis` is in years. Follow-up and survival duration fields
+use days. Comparison bins such as `[40, 50)` include ages 40 through just below 50.

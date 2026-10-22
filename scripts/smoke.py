@@ -6,12 +6,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from sandbox_connection import connection
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--origin', default='http://127.0.0.1:3080')
+parser.add_argument('--access-file', help='Private access JSON created by the AWS launcher')
 args = parser.parse_args()
-if not args.origin.startswith(('http://127.0.0.1:', 'http://localhost:')):
-    raise SystemExit('Smoke tests only target a local sandbox or port-forward')
+access_headers, opener = connection(args.origin, args.access_file)
 root = Path(__file__).resolve().parents[1]
 cases = json.loads((root / 'generated/cases.json').read_text())
 variants = json.loads((root / 'generated/variants.json').read_text())
@@ -19,9 +20,9 @@ variants = json.loads((root / 'generated/variants.json').read_text())
 
 def call(path, payload=None, raw=False):
     req = urllib.request.Request(args.origin + path, data=json.dumps(payload).encode() if payload is not None else None,
-                                 headers={'Content-Type': 'application/json'})
+                                 headers={'Content-Type': 'application/json', **access_headers})
     try:
-        with urllib.request.urlopen(req, timeout=90) as response:
+        with opener.open(req, timeout=90) as response:
             assert 'Set-Cookie' not in response.headers, 'Sandbox must not replace localhost login cookies'
             data = response.read()
     except urllib.error.HTTPError as exc:

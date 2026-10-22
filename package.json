@@ -1,7 +1,7 @@
 {
   "name": "mmrf-virtual-lab-sandbox",
   "version": "1.0.0",
-  "description": "A synthetic-only developer environment for the MMRF Virtual Lab. The frontend, Guppy, Gen3 analysis service, and ProteinPaint remain separate projects. This repository supplies their sandbox configuration, generated fixtures, disposable identity service, Docker Compose launcher, Helm chart, and Terraform for a new dedicated AWS account.",
+  "description": "Synthetic Virtual Lab environment for local development and AWS EKS.",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:ui": "node scripts/ui-smoke.mjs"

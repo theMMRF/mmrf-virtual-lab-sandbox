@@ -3,7 +3,7 @@ data "aws_availability_zones" "available" {
 }
 
 resource "aws_vpc" "sandbox" {
-  cidr_block           = "10.86.0.0/16"
+  cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
   tags                 = { Name = var.name }
@@ -91,7 +91,7 @@ resource "aws_eks_node_group" "sandbox" {
   subnet_ids      = aws_subnet.nodes[*].id
   instance_types  = ["m6i.xlarge"]
   ami_type        = "AL2023_x86_64_STANDARD"
-  disk_size       = 40
+  disk_size       = 80
   scaling_config {
     desired_size = 1
     min_size     = 1

@@ -3,7 +3,10 @@ import {chromium, expect} from '@playwright/test';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 const origin = process.env.SANDBOX_ORIGIN || 'http://127.0.0.1:3080';
 const url = new URL(origin);
-if (url.protocol !== 'http:' || !['127.0.0.1','localhost'].includes(url.hostname)) throw new Error('Only a local sandbox/port-forward is supported');
+const access = process.env.SANDBOX_ACCESS_FILE ? JSON.parse(await readFile(process.env.SANDBOX_ACCESS_FILE,'utf8')) : null;
+const local = url.protocol === 'http:' && ['127.0.0.1','localhost'].includes(url.hostname);
+const hosted = url.protocol === 'https:' && /^[a-z0-9]+\.cloudfront\.net$/.test(url.host);
+if ((!local && !hosted) || url.origin !== origin || (hosted && !access) || (access && access.origin !== origin)) throw new Error('Use localhost or an explicit credential-bound CloudFront deployment');
 const cases = JSON.parse(await readFile(new URL('../generated/cases.json', import.meta.url)));
 const variants = JSON.parse(await readFile(new URL('../generated/variants.json', import.meta.url)));
 const fixtureFiles = JSON.parse(await readFile(new URL('../generated/files.json', import.meta.url)));
@@ -13,13 +16,13 @@ const counts = new Map();
 for (const v of variants.filter(v=>femaleIds.has(v.case_id))) counts.set(v.symbol,(counts.get(v.symbol)||0)+1);
 await mkdir('screenshots',{recursive:true});
 const browser = await chromium.launch({headless:true});
-const page = await browser.newPage({viewport:{width:1440,height:1000}});
+const page = await browser.newPage({viewport:{width:1440,height:1000}, ...(access ? {httpCredentials:{origin, username:access.username,password:access.password}} : {})});
 const existingCookie = 'normal-local-development-test-sentinel';
 await page.context().addCookies([{name:'access_token', value:existingCookie, url:origin}]);
 const failures=[];
 page.on('pageerror',e=>failures.push(e.message));
 page.on('request',r=>{if (/(^|\.)(google-analytics\.com|googletagmanager\.com|analytics\.google\.com|doubleclick\.net)$/.test(new URL(r.url()).hostname)) failures.push(`Unexpected tracking request: ${r.url()}`)});
-page.on('response',r=>{if(r.url().startsWith(origin)&&r.status()>=400) failures.push(`${r.status()} ${r.url()}`)});
+page.on('response',r=>{if(r.url().startsWith(origin)&&r.status()>=400 && !(access && r.status()===401 && r.headers()['www-authenticate']?.startsWith('Basic realm="Synthetic Virtual Lab"'))) failures.push(`${r.status()} ${r.url()}`)});
 async function open(app) { await page.goto(`${origin}/?app=${app}`,{waitUntil:'domcontentloaded'}); await expect(page.getByText('Synthetic sandbox — all data is fabricated and has no clinical meaning.',{exact:true})).toBeVisible(); }
 async function capture(name){await page.mouse.move(0,0);await page.screenshot({path:`screenshots/${name}.png`,fullPage:true});}
 try {

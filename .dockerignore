@@ -6,3 +6,9 @@
 **/.env*
 **/*.tfstate*
 screenshots
+# Operator-only state/credentials are never part of fixture-bearing images.
+generated/aws*
+generated/ecr-repositories.json
+terraform
+**/*.auto.tfvars*
+**/*.tfplan
