@@ -46,7 +46,7 @@ class LauncherTests(unittest.TestCase):
     def test_live_acceptance_requires_expected_authenticated_fixture(self):
         opener = Mock()
         projects = [{"project_id": name, "disease_type": ["Synthetic"], "primary_site": ["Synthetic"],
-                     "summary": {"data_categories": [{"data_category": "Sequencing"}]}}
+                     "summary": {"case_count": 500, "data_categories": [{"data_category": "Sequencing"}]}}
                     for name in ["SYNTHETIC-MM", "SYNTHETIC-RNA"]]
         opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None),
                                   json_response({"synthetic": True, "cases": 1000}),
@@ -75,6 +75,27 @@ class LauncherTests(unittest.TestCase):
                 with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
                     with self.assertRaisesRegex(ValueError, "Projects"):
                         launcher.check_site(credentials, attempts=1)
+
+    def test_live_acceptance_rejects_incorrect_project_counts(self):
+        for project_id in ["SYNTHETIC-MM", "SYNTHETIC-RNA"]:
+            for count in [None, 0, 499, "500"]:
+                with self.subTest(project=project_id, count=count):
+                    projects = [{"project_id": name, "disease_type": ["Synthetic"], "primary_site": ["Synthetic"],
+                                 "summary": {"case_count": 500, "data_categories": [{"data_category": "Sequencing"}]}}
+                                for name in ["SYNTHETIC-MM", "SYNTHETIC-RNA"]]
+                    summary = next(p["summary"] for p in projects if p["project_id"] == project_id)
+                    if count is None:
+                        del summary["case_count"]
+                    else:
+                        summary["case_count"] = count
+                    opener = Mock()
+                    opener.open.side_effect = [urllib.error.HTTPError("https://unitfixture.cloudfront.net/sandbox/status", 401, "Unauthorized", {}, None),
+                                              json_response({"synthetic": True, "cases": 1000}),
+                                              json_response({"data": {"Project_project": projects}})]
+                    credentials = {"origin": "https://unitfixture.cloudfront.net", "username": "sandbox", "password": "unit-test-only"}
+                    with patch.object(launcher.urllib.request, "build_opener", return_value=opener):
+                        with self.assertRaisesRegex(ValueError, "500 synthetic cases"):
+                            launcher.check_site(credentials, attempts=1)
 
     def test_wrong_account_prevents_build_plan_and_apply(self):
         operator = launcher.Operator(CONFIG)

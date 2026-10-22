@@ -316,6 +316,8 @@ def check_site(credentials, attempts=60):
             if any(not isinstance(p.get("disease_type"), list) or not isinstance(p.get("primary_site"), list)
                    or not (p.get("summary") or {}).get("data_categories") for p in projects):
                 raise ValueError("Hosted Projects returned incompatible field shapes")
+            if any(p["summary"].get("case_count") != 500 for p in projects):
+                raise ValueError("Hosted Projects must each contain 500 synthetic cases")
             print("PASS: valid HTTPS, authenticated 1,000-case API and two projects; anonymous access denied")
             return
         except (OSError, urllib.error.HTTPError):
