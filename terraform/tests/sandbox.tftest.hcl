@@ -1,4 +1,15 @@
-mock_provider "aws" {}
+mock_provider "aws" {
+  # AWS publishes the zero-TTL settings in the managed-policy documentation:
+  # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html#managed-cache-policy-caching-disabled
+  # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html#managed-origin-request-policy-all-viewer
+  mock_data "aws_cloudfront_cache_policy" {
+    defaults = {
+      min_ttl     = 0
+      default_ttl = 0
+      max_ttl     = 0
+    }
+  }
+}
 override_data {
   target = data.aws_availability_zones.available
   values = { names = ["us-east-1a", "us-east-1b"] }
@@ -56,11 +67,32 @@ run "private_https_entry" {
     error_message = "No operator-provided domain or certificate may be required."
   }
   assert {
-    condition     = aws_cloudfront_distribution.sandbox[0].default_cache_behavior[0].cache_policy_id == "413f160f-6d90-4db8-a6e7-74cbb926abc1"
-    error_message = "Do not cache credentials, API responses or cohort-dependent results."
+    # The mock leaves optional policy IDs null; compare the data-source output
+    # rather than duplicating a hard-coded ID. This rejects a literal fallback.
+    condition     = data.aws_cloudfront_cache_policy.caching_disabled[0].name == "Managed-CachingDisabled" && aws_cloudfront_distribution.sandbox[0].default_cache_behavior[0].cache_policy_id == data.aws_cloudfront_cache_policy.caching_disabled[0].id
+    error_message = "Resolve AWS's managed zero-TTL policy by name and use its returned ID."
+  }
+  assert {
+    condition     = data.aws_cloudfront_origin_request_policy.all_viewer[0].name == "Managed-AllViewer" && aws_cloudfront_distribution.sandbox[0].default_cache_behavior[0].origin_request_policy_id == data.aws_cloudfront_origin_request_policy.all_viewer[0].id
+    error_message = "Forward viewer authorization, cookies and query strings with AWS's managed AllViewer policy."
   }
   assert {
     condition     = aws_vpc_security_group_ingress_rule.node_entry[0].from_port == 30080 && aws_vpc_security_group_ingress_rule.node_entry[0].to_port == 30080 && aws_vpc_security_group_ingress_rule.node_entry[0].cidr_ipv4 == null
     error_message = "The NodePort rule must use the ALB security group, not a public CIDR."
   }
+}
+
+run "reject_cacheable_api_policy" {
+  command = plan
+  variables { enable_https = true }
+  override_data {
+    target = data.aws_cloudfront_cache_policy.caching_disabled[0]
+    values = {
+      id          = "unexpected-cacheable-policy"
+      min_ttl     = 0
+      default_ttl = 60
+      max_ttl     = 3600
+    }
+  }
+  expect_failures = [data.aws_cloudfront_cache_policy.caching_disabled[0]]
 }

@@ -111,7 +111,7 @@ start again. The seeder rejects mismatched fixture fingerprints.
 ## HTTPS EKS launcher follow-up
 
 The separate AWS-launcher change adds an operator-run CLI and optional Terraform
-CloudFront VPC origin/private ALB. Local validation covers five mocked Terraform
+CloudFront VPC origin/private ALB. Local validation covers six mocked Terraform
 plans, normal and hosted Helm rendering, Python launcher/account/state/deletion
 regressions, entry-point authorization and HTTPS-origin unit checks. The full
 API and Chromium suites also pass through the authenticated entry on a loopback
@@ -121,3 +121,9 @@ No AWS CLI, real Terraform plan/apply, ECR publication or remote HTTPS smoke
 command has been run by the preparation agent. Provider mocks do not establish
 that EKS boots, the ALB target is healthy or CloudFront works in Sandbox One.
 The launcher performs those live acceptance checks only when the operator runs it.
+
+The managed cache/origin-request policies are resolved by name during planning.
+A data-source postcondition rejects any nonzero cache TTL; the extra mock plan
+checks this rejection. Mocks verify lookup wiring and constraints, not AWS policy
+existence. The original copied cache-policy UUID was incorrect and was detected
+by the operator's real deployment, after the cluster and private origin started.

@@ -109,6 +109,22 @@ resource "aws_cloudfront_vpc_origin" "sandbox" {
   }
   depends_on = [aws_lb_listener.entry, aws_vpc_security_group_ingress_rule.cloudfront, aws_route_table_association.origin, aws_internet_gateway.sandbox]
 }
+# Resolve managed policies during planning so a missing policy is detected
+# before infrastructure is created, rather than relying on copied UUIDs.
+data "aws_cloudfront_cache_policy" "caching_disabled" {
+  count = var.enable_https ? 1 : 0
+  name  = "Managed-CachingDisabled"
+  lifecycle {
+    postcondition {
+      condition     = self.min_ttl == 0 && self.default_ttl == 0 && self.max_ttl == 0
+      error_message = "The CloudFront policy must disable caching for credentials and cohort-specific results."
+    }
+  }
+}
+data "aws_cloudfront_origin_request_policy" "all_viewer" {
+  count = var.enable_https ? 1 : 0
+  name  = "Managed-AllViewer"
+}
 resource "aws_cloudfront_distribution" "sandbox" {
   count               = var.enable_https ? 1 : 0
   enabled             = true
@@ -132,8 +148,8 @@ resource "aws_cloudfront_distribution" "sandbox" {
     compress               = true
     # AWS managed CachingDisabled and AllViewer policies. No synthetic sessions,
     # Basic authorization, API responses, or cohort-dependent plots are cached.
-    cache_policy_id          = "413f160f-6d90-4db8-a6e7-74cbb926abc1"
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer[0].id
   }
   restrictions {
     geo_restriction { restriction_type = "none" }
