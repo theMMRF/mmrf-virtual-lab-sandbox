@@ -1,5 +1,5 @@
 variable "sandbox_account_id" {
-  description = "The dedicated hackathon account. The provider rejects any other account."
+  description = "Dedicated sandbox account ID; enforced by the AWS provider."
   type        = string
   validation {
     condition     = can(regex("^[0-9]{12}$", var.sandbox_account_id))
