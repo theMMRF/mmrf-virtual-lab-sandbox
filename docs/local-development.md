@@ -46,3 +46,8 @@ the flag alone does not provide a running backend.
 Clinical ages use years. Follow-up durations use days. Small cohorts can fall
 below the existing ten-case survival threshold. Files are generated examples,
 and all plotted values are synthetic.
+
+Categorical fixtures use field-specific terms. CGS labels follow the four groups
+in the [IMS/IMWG consensus](https://pubmed.ncbi.nlm.nih.gov/40489728/).
+Marker assignments are random, with matching High risk / Standard risk labels;
+they are independent of the synthetic variants, survival, and treatment response.

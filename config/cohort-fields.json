@@ -1,21 +1,44 @@
 {
   "project.project_id": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "SYNTHETIC-MM",
+      "SYNTHETIC-RNA"
+    ]
   },
   "primary_site": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Bone Marrow"
+    ]
   },
   "disease_type": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Multiple Myeloma"
+    ]
   },
   "demographic.gender": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "female",
+      "male"
+    ]
   },
   "demographic.race": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "white",
+      "black or african american",
+      "asian"
+    ]
   },
   "demographic.ethnicity": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "hispanic or latino",
+      "not hispanic or latino"
+    ]
   },
   "demographic.age_at_index": {
     "type": "age"
@@ -27,46 +50,100 @@
     "type": "age_in_years"
   },
   "demographic.vital_status": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Alive",
+      "Dead"
+    ]
   },
   "demographic.year_of_death": {
     "type": "year"
   },
   "follow_ups.ecog_performance_status": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+    ]
   },
   "family_histories.relatives_with_cancer_history_count": {
     "type": "numeric_range"
   },
   "bone_assessments.lytic_bone_lesion_present": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.mm_bone_lesion_femur": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.mm_bone_lesion_pelvis": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.mm_bone_lesion_ribs": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.mm_bone_lesion_skull": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.mm_bone_lesion_spine": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "bone_assessments.number_of_lytic_lesions": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "0",
+      "1",
+      "2",
+      "3 or more"
+    ]
   },
   "bone_assessments.osteopenia_osteoporosis": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Normal",
+      "Osteopenia",
+      "Osteoporosis"
+    ]
   },
   "outcomes.censor_os": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      0,
+      1
+    ]
   },
   "outcomes.censor_pfs": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      0,
+      1
+    ]
   },
   "outcomes.surivival_time_os": {
     "type": "numeric_range"
@@ -75,28 +152,65 @@
     "type": "numeric_range"
   },
   "diagnoses.best_overall_response": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Stringent complete response",
+      "Complete response",
+      "Very good partial response",
+      "Partial response",
+      "Stable disease",
+      "Progressive disease"
+    ]
   },
   "administered_regimen_lines.line": {
     "type": "numeric_range"
   },
   "administered_regimen_lines.first_line": {
-    "type": "multiselect"
+    "type": "multiselect",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "administered_regimen_lines.regimen_name": {
-    "type": "multiselect"
+    "type": "multiselect",
+    "values": [
+      "Bortezomib, lenalidomide, dexamethasone",
+      "Daratumumab, lenalidomide, dexamethasone",
+      "Carfilzomib, lenalidomide, dexamethasone",
+      "Bortezomib, cyclophosphamide, dexamethasone"
+    ]
   },
   "administered_regimen_lines.regimen_duration": {
     "type": "numeric_range"
   },
   "administered_regimen_lines.regimen_short_name": {
-    "type": "multiselect"
+    "type": "multiselect",
+    "values": [
+      "VRd",
+      "DRd",
+      "KRd",
+      "VCd"
+    ]
   },
   "administered_regimen_lines.reason_for_discontinuation": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Completed planned therapy",
+      "Disease progression",
+      "Adverse event",
+      "Patient decision"
+    ]
   },
   "diagnoses.bmi_at_diagnosis": {
-    "type": "multiselect"
+    "type": "multiselect",
+    "values": [
+      "18.2",
+      "22.4",
+      "26.8",
+      "31.2",
+      "35.6"
+    ]
   },
   "diagnoses.days_to_diagnosis": {
     "type": "days"
@@ -108,10 +222,19 @@
     "type": "days"
   },
   "diagnoses.iss_stage": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Stage I",
+      "Stage II",
+      "Stage III"
+    ]
   },
   "diagnoses.first_progressive_disease": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Yes",
+      "No"
+    ]
   },
   "cgs_risk_key_criteria.cgs_risk_category": {
     "type": "enum"
@@ -123,15 +246,30 @@
     "type": "enum"
   },
   "samples.sample_type": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Primary Tumor"
+    ]
   },
   "samples.specimen_type": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Bone Marrow"
+    ]
   },
   "samples.tissue_type": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "Tumor"
+    ]
   },
   "files.experimental_strategy": {
-    "type": "enum"
+    "type": "enum",
+    "values": [
+      "WGS",
+      "WXS",
+      "RNA-Seq",
+      "scRNA-Seq"
+    ]
   }
 }

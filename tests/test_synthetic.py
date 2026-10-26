@@ -61,6 +61,15 @@ class SyntheticIntegrity(unittest.TestCase):
         with tempfile.TemporaryDirectory() as out:
             cases, files, variants = generator.generate(out)
             self.assertEqual(len({c['project_id'] for c in cases}), 2)
+            self.assertNotRegex(json.dumps(cases), r'Synthetic [AB]\b')
+            self.assertEqual({c['cgs_risk_key_criteria']['cgs_risk_category'] for c in cases}, {'High risk', 'Standard risk'})
+            self.assertEqual({label for c in cases for label in c['cgs_risk_key_criteria']['cgs_risk_criteria']}, set(generator.CGS_CRITERIA))
+            for case in cases:
+                risk = case['cgs_risk_key_criteria']
+                self.assertEqual(risk['cgs_risk_category'] == 'High risk', bool(risk['cgs_risk_criteria']))
+                regimen = case['administered_regimen_lines'][0]
+                self.assertEqual(dict(generator.REGIMENS)[regimen['regimen_short_name']], regimen['regimen_name'])
+                self.assertEqual(regimen['first_line'] == 'Yes', regimen['line'] == 1)
             self.assertEqual({v['class'] for v in variants}, {'M', 'N', 'P', 'F', 'D', 'I', 'S'})
             for field in ('data_format', 'data_type', 'data_category', 'experimental_strategy'):
                 self.assertGreaterEqual(len({f[field] for f in files}), 3)
@@ -76,6 +85,8 @@ class SyntheticIntegrity(unittest.TestCase):
                 for race in ('white', 'black or african american', 'asian'):
                     selected = {c['case_id'] for c in cases if c['gender'] == gender and c['race'] == race}
                     self.assertGreaterEqual(len(selected), 150)
+                    for risk in ('High risk', 'Standard risk'):
+                        self.assertGreaterEqual(sum(c['case_id'] in selected and c['cgs_risk_key_criteria']['cgs_risk_category'] == risk for c in cases), 10)
                     for symbol, *_ in generator.GENES:
                         mutated = {v['case_id'] for v in variants if v['symbol'] == symbol and v['case_id'] in selected}
                         self.assertGreaterEqual(len(mutated), 10, (gender, race, symbol))
