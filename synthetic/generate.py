@@ -112,10 +112,12 @@ def cgs_fixture(rng):
     This is a fixture vocabulary, not a classifier for genomic/clinical input.
     These assignments do not control variants, survival, or treatment response.
     """
-    del17p, tp53, gain1q = (rng.random() < .15 for _ in range(3))
-    igh = rng.choice((None, 't(4;14)', 't(14;16)', 't(14;20)'))
-    del1p = rng.choice(('Absent', 'Monoallelic', 'Biallelic'))
-    high_b2m, normal_creatinine = rng.random() < .25, rng.random() < .7
+    # Arbitrary fixture weights keep High risk a minority, not an estimate of
+    # clinical prevalence. Categories still follow the assigned criteria.
+    del17p, tp53, gain1q = (rng.random() < probability for probability in (.05, .05, .2))
+    igh = rng.choices((None, 't(4;14)', 't(14;16)', 't(14;20)'), weights=(70, 10, 10, 10))[0]
+    del1p = rng.choices(('Absent', 'Monoallelic', 'Biallelic'), weights=(85, 13, 2))[0]
+    high_b2m, normal_creatinine = rng.random() < .1, rng.random() < .7
     positive = (
         del17p or tp53,
         igh is not None and (gain1q or del1p != 'Absent'),

@@ -49,5 +49,7 @@ and all plotted values are synthetic.
 
 Categorical fixtures use field-specific terms. CGS labels follow the four groups
 in the [IMS/IMWG consensus](https://pubmed.ncbi.nlm.nih.gov/40489728/).
-Marker assignments are random, with matching High risk / Standard risk labels;
-they are independent of the synthetic variants, survival, and treatment response.
+The same seed and generator version reproduce the same data. Marker assignments
+are random, weighted to make High risk the smaller group, with matching risk
+labels. These weights are arbitrary, not clinical prevalence estimates.
+Assignments are independent of variants, survival, and treatment response.

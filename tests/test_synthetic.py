@@ -63,6 +63,8 @@ class SyntheticIntegrity(unittest.TestCase):
             self.assertEqual(len({c['project_id'] for c in cases}), 2)
             self.assertNotRegex(json.dumps(cases), r'Synthetic [AB]\b')
             self.assertEqual({c['cgs_risk_key_criteria']['cgs_risk_category'] for c in cases}, {'High risk', 'Standard risk'})
+            risk_counts = Counter(c['cgs_risk_key_criteria']['cgs_risk_category'] for c in cases)
+            self.assertLess(risk_counts['High risk'], risk_counts['Standard risk'])
             self.assertEqual({label for c in cases for label in c['cgs_risk_key_criteria']['cgs_risk_criteria']}, set(generator.CGS_CRITERIA))
             for case in cases:
                 risk = case['cgs_risk_key_criteria']
