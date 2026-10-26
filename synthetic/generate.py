@@ -18,6 +18,20 @@ GENES = [
     ("MYC", "ENSG00000136997", "chr8", 60000),
 ]
 COHORT_FIELDS = json.loads((Path(__file__).resolve().parents[1] / 'config/cohort-fields.json').read_text())
+# Public terminology only; fixture assignments are unrelated to patient data.
+# IMS/IMWG consensus: https://pubmed.ncbi.nlm.nih.gov/40489728/
+CGS_CRITERIA = (
+    'del(17p) and/or TP53 mutation',
+    't(4;14), t(14;16), or t(14;20) with 1q+ and/or del(1p32)',
+    'Monoallelic del(1p32) with 1q+, or biallelic del(1p32)',
+    'Beta-2 microglobulin >=5.5 mg/L with creatinine <1.2 mg/dL',
+)
+REGIMENS = (
+    ('VRd', 'Bortezomib, lenalidomide, dexamethasone'),
+    ('DRd', 'Daratumumab, lenalidomide, dexamethasone'),
+    ('KRd', 'Carfilzomib, lenalidomide, dexamethasone'),
+    ('VCd', 'Bortezomib, cyclophosphamide, dexamethasone'),
+)
 FILE_PROFILES = [
     ('fasta', 'FASTA', 'WGS', 'Sequencing Reads', 'Synthetic sequence', 'Synthetic assembly'),
     ('bam', 'BAM', 'WGS', 'Sequencing Reads', 'Aligned Reads', 'Synthetic alignment'),
@@ -92,12 +106,48 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n")
 
 
+def cgs_fixture(rng):
+    """Random demonstration markers, with mutually consistent CGS facet labels.
+
+    This is a fixture vocabulary, not a classifier for genomic/clinical input.
+    These assignments do not control variants, survival, or treatment response.
+    """
+    # Arbitrary fixture weights keep High risk a minority, not an estimate of
+    # clinical prevalence. Categories still follow the assigned criteria.
+    del17p, tp53, gain1q = (rng.random() < probability for probability in (.05, .05, .2))
+    igh = rng.choices((None, 't(4;14)', 't(14;16)', 't(14;20)'), weights=(70, 10, 10, 10))[0]
+    del1p = rng.choices(('Absent', 'Monoallelic', 'Biallelic'), weights=(85, 13, 2))[0]
+    high_b2m, normal_creatinine = rng.random() < .1, rng.random() < .7
+    positive = (
+        del17p or tp53,
+        igh is not None and (gain1q or del1p != 'Absent'),
+        (del1p == 'Monoallelic' and gain1q) or del1p == 'Biallelic',
+        high_b2m and normal_creatinine,
+    )
+    markers = (
+        ('del(17p) at qualifying clonal fraction', del17p),
+        ('TP53 mutation', tp53),
+        ('1q gain/amplification', gain1q),
+        ('Monoallelic del(1p32)', del1p == 'Monoallelic'),
+        ('Biallelic del(1p32)', del1p == 'Biallelic'),
+        ('Beta-2 microglobulin >=5.5 mg/L', high_b2m),
+        ('Creatinine <1.2 mg/dL', normal_creatinine),
+        *((name, igh == name) for name in ('t(4;14)', 't(14;16)', 't(14;20)')),
+    )
+    return {
+        'cgs_risk_category': 'High risk' if any(positive) else 'Standard risk',
+        'cgs_risk_criteria': [label for label, present in zip(CGS_CRITERIA, positive) if present],
+        'other_criteria': [f'{label}: {"Present" if present else "Absent"}' for label, present in markers],
+    }
+
+
 def generate(out, count=1000, seed=42):
     if not 10 <= count <= 1000:
         raise ValueError("Choose between 10 and 1000 synthetic cases")
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
+    labels_rng = random.Random(seed + 1973)
     records, files, variants = [], [], []
     for number in range(1, count + 1):
         cid = f"SYNTH-CASE-{number:04d}"
@@ -105,6 +155,7 @@ def generate(out, count=1000, seed=42):
         age = rng.randint(40, 85)
         days = rng.randint(180, 3500)
         vital = rng.choice(["Alive", "Alive", "Dead"])
+        regimen_short, regimen_name = labels_rng.choice(REGIMENS)
         project_id = 'SYNTHETIC-MM' if number <= (count + 1) // 2 else 'SYNTHETIC-RNA'
         resource = '/programs/SYNTHETIC/projects/' + ('MM' if project_id == 'SYNTHETIC-MM' else 'RNA')
         project = {"project_id": project_id, "name": "Synthetic discovery" if project_id == 'SYNTHETIC-MM' else 'Synthetic validation',
@@ -120,18 +171,31 @@ def generate(out, count=1000, seed=42):
                 "ethnicity": ["hispanic or latino", "not hispanic or latino"][((number - 1) // 6) % 2], "age_at_index": age,
                 "age_at_diagnosis": age * 365, "days_to_birth": -age * 365, "vital_status": vital,
                 "days_to_death": days if vital == "Dead" else None, "days_to_last_follow_up": days,
-                "primary_diagnosis": "Multiple myeloma", "therapeutic_agents": rng.choice(["Synthetic regimen A", "Synthetic regimen B"]),
+                "primary_diagnosis": "Multiple myeloma", "therapeutic_agents": regimen_name,
                 "auth_resource_path": resource, "authz": [resource],
                 "samples": [sample], "sample_id": sid, "sample_ids": [sid], "synthetic": True}
         case["demographic"] = {k: case[k] for k in ["gender", "race", "ethnicity", "vital_status", "days_to_birth", "days_to_death"]}
         case["diagnoses"] = [{"age_at_diagnosis": age, "days_to_last_follow_up": days,
                                "primary_diagnosis": case["primary_diagnosis"], "treatments": [{"therapeutic_agents": case["therapeutic_agents"]}]}]
+        line = labels_rng.randint(1, 4)
+        case['administered_regimen_lines'] = [{'line': line, 'first_line': 'Yes' if line == 1 else 'No',
+                                              'regimen_name': regimen_name, 'regimen_short_name': regimen_short}]
+        case['cgs_risk_key_criteria'] = cgs_fixture(labels_rng)
         for path, spec in COHORT_FIELDS.items():
-            value = rng.randint(1, 20) if spec['type'] in ('numeric_range', 'days') else rng.choice(['Synthetic A', 'Synthetic B'])
-            if spec['type'].startswith('age'):
+            # Existing case/sample/project fields keep their values. Every other
+            # categorical field has an explicit vocabulary; no generic fallback.
+            if path.startswith('cgs_risk_key_criteria.'):
+                continue
+            if 'values' in spec:
+                value = labels_rng.choice(spec['values'])
+            elif spec['type'] in ('numeric_range', 'days'):
+                value = rng.randint(1, 20)
+            elif spec['type'].startswith('age'):
                 value = age * 365
             elif spec['type'] == 'year':
                 value = 2020 + number % 5
+            else:
+                raise ValueError(f'Missing fixture vocabulary: {path}')
             fill_field(case, path, value)
         case['outcomes'] = {'censor_os': int(vital == 'Dead'), 'censor_pfs': int(vital == 'Dead'),
                             'surivival_time_os': days, 'survival_time_pfs': days}
@@ -170,7 +234,7 @@ def generate(out, count=1000, seed=42):
     write_json(out / "cases.json", records)
     write_json(out / "files.json", files)
     write_json(out / "variants.json", variants)
-    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 3, "seed": seed,
+    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 4, "seed": seed,
                                          "cases": count, "source": "Seeded pseudorandom generation; no patient inputs"})
     make_termdb(out, records)
     make_gene_db(out)

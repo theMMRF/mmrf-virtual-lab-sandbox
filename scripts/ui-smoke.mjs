@@ -32,6 +32,22 @@ try {
   await page.evaluate(()=>localStorage.setItem('mmrf-cookie-consent','accepted'));
   await open('CohortBuilder');
   await expect(page.locator('body')).toContainText(new RegExp(`${cases.length.toLocaleString('en-US')}\\s*CASES`,'i'),{timeout:30000});
+  await page.getByRole('tab',{name:'CGS Risk',exact:true}).click();
+  for (const label of ['High risk','Standard risk', ...new Set(cases.flatMap(c=>c.cgs_risk_key_criteria.cgs_risk_criteria))]) {
+    await expect(page.getByRole('checkbox',{name:label,exact:true})).toBeVisible();
+  }
+  await page.getByRole('checkbox',{name:'High risk',exact:true}).check();
+  const highRisk = cases.filter(c=>c.cgs_risk_key_criteria.cgs_risk_category==='High risk');
+  await expect(page.locator('body')).toContainText(new RegExp(`${highRisk.length}\\s*CASES`,'i'),{timeout:30000});
+  await page.locator('[id="cgs_risk_key_criteria.other_criteria"]').getByText(/\d+ more/).click();
+  await page.getByRole('checkbox',{name:'TP53 mutation: Present',exact:true}).check();
+  const highRiskTp53 = highRisk.filter(c=>c.cgs_risk_key_criteria.other_criteria.includes('TP53 mutation: Present'));
+  await expect(page.locator('body')).toContainText(new RegExp(`${highRiskTp53.length}\\s*CASES`,'i'),{timeout:30000});
+  await capture('cgs-risk-labels');
+  await page.getByRole('checkbox',{name:'TP53 mutation: Present',exact:true}).uncheck();
+  await page.getByRole('checkbox',{name:'High risk',exact:true}).uncheck();
+  await expect(page.locator('body')).toContainText(new RegExp(`${cases.length.toLocaleString('en-US')}\\s*CASES`,'i'),{timeout:30000});
+  console.log(`PASS: CGS labels and combined filters select ${highRiskTp53.length}/${highRisk.length}/${cases.length} synthetic cases`);
   await page.getByRole('tab',{name:'Demographic',exact:true}).click();
   await page.getByRole('checkbox',{name:'female',exact:true}).check();
   await page.getByRole('checkbox',{name:'black or african american',exact:true}).check();
