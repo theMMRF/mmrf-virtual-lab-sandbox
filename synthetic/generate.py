@@ -105,14 +105,38 @@ CODONS = {
 
 
 def coding_sequence(symbol):
+    """Back-translate a bundled reference protein into deterministic coding DNA."""
     return ''.join(CODONS[aa] for aa in PUBLIC_PROTEINS[symbol]['sequence'])
 
 
+def validate_reference_models():
+    """Reject overlapping or out-of-bounds models before writing any fixtures."""
+    spans = defaultdict(list)
+    for symbol, _, chrom, start in EXPRESSION_MODELS:
+        stop = start + len(coding_sequence(symbol))
+        if start < 0 or stop > REFERENCE_LENGTH:
+            raise ValueError(f'{symbol} lies outside the synthetic reference')
+        spans[chrom].append((start, stop, symbol))
+    for chrom, models in spans.items():
+        models.sort()
+        for (_, stop, first), (start, _, second) in zip(models, models[1:]):
+            if stop > start:
+                raise ValueError(f'{first} overlaps {second} on {chrom}')
+
+
 def variant_templates(symbol, gid, chrom, start):
+    """Combine public protein-change labels with invented background variants."""
     protein = PUBLIC_PROTEINS[symbol]['sequence']
     result = []
 
     def add(name, aa, kind, consequence, ref, alt, offset, weight, reference):
+        # Trim unchanged bases for every substitution, including synonymous and
+        # stop-gained backgrounds, so single-base changes remain SNPs.
+        if len(ref) == len(alt):
+            while len(ref) > 1 and ref[-1] == alt[-1]:
+                ref, alt = ref[:-1], alt[:-1]
+            while len(ref) > 1 and ref[0] == alt[0]:
+                ref, alt, offset = ref[1:], alt[1:], offset + 1
         result.append({'ssm_id': f'SYNTH-SSM-{symbol}-{len(result)+1:02d}',
                        'gene_id': gid, 'symbol': symbol, 'chr': chrom,
                        'pos': start + offset + 1, 'ref': ref, 'alt': alt,
@@ -124,10 +148,6 @@ def variant_templates(symbol, gid, chrom, start):
         ref, alt = CODONS[change[0]], CODONS[change[-1]]
         # Use a short replacement in the synthetic back-translated reference.
         offset = (aa - 1) * 3
-        while len(ref) > 1 and ref[-1] == alt[-1]:
-            ref, alt = ref[:-1], alt[:-1]
-        while len(ref) > 1 and ref[0] == alt[0]:
-            ref, alt, offset = ref[1:], alt[1:], offset + 1
         add('p.' + change, aa, 'M', 'missense_variant', ref, alt, offset, weight, True)
     # Low-frequency invented background variants demonstrate the other classes.
     # Their annotations and positions are deliberately not asserted as public hotspots.
@@ -261,8 +281,10 @@ def cgs_fixture(rng):
 
 
 def generate(out, count=1000, seed=42):
+    """Write a reproducible, connected fixture set without patient input."""
     if not 10 <= count <= 1000:
         raise ValueError("Choose between 10 and 1000 synthetic cases")
+    validate_reference_models()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)

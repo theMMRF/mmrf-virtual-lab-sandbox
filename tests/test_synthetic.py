@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 import gzip
 import hashlib
 import math
@@ -17,6 +18,15 @@ spec.loader.exec_module(generator)
 
 
 class SyntheticIntegrity(unittest.TestCase):
+    def test_reference_models_reject_overlaps_and_out_of_bounds_sequences(self):
+        generator.validate_reference_models()
+        with patch.dict(generator.PUBLIC_PROTEINS, MKI67={'sequence': 'M' * 4000}):
+            with self.assertRaisesRegex(ValueError, 'MKI67 overlaps PCNA'):
+                generator.validate_reference_models()
+        with patch.object(generator, 'REFERENCE_LENGTH', 100):
+            with self.assertRaisesRegex(ValueError, 'outside the synthetic reference'):
+                generator.validate_reference_models()
+
     def test_demo_scenarios_support_survival_and_differential_expression(self):
         for seed in (42, 7, 103):
             with self.subTest(seed=seed), tempfile.TemporaryDirectory() as out:
@@ -81,6 +91,12 @@ class SyntheticIntegrity(unittest.TestCase):
                     self.assertEqual(model['cdslen'], 3 * len(protein))
                     self.assertEqual(len(model['genomicseq']), model['codingstop'] - model['codingstart'])
                     for variant in generator.variant_templates(symbol, gid, chrom, start):
+                        ref, alt = variant['ref'], variant['alt']
+                        if len(ref) == len(alt) > 1:
+                            self.assertNotEqual(ref[0], alt[0])
+                            self.assertNotEqual(ref[-1], alt[-1])
+                        if variant['class'] == 'S':
+                            self.assertEqual((len(ref), len(alt)), (1, 1))
                         if variant['public_protein_example']:
                             self.assertEqual(protein[variant['aa_position'] - 1], variant['mname'][2])
                 kras = json.loads(db.execute("select genemodel from genes where name='KRAS'").fetchone()[0])
