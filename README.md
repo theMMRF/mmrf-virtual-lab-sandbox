@@ -39,9 +39,14 @@ The deployment provides a password-protected CloudFront HTTPS URL.
 
 ## Data and development
 
-The default dataset has 1,000 cases, two projects, six genes, and 80,000 cells.
-All records, sequences, variants, coordinates, expression, and survival values
-are fabricated. Supported genes: KRAS, NRAS, TP53, BRAF, DIS3, and MYC.
+The default dataset has 1,000 cases, two projects, a six-gene mutation panel,
+36 expression genes, and 80,000 cells. Patient records and measurements are
+fabricated. Public reference proteins and hotspot labels support the gene
+displays; genomic coordinates remain synthetic.
+
+Designed scenarios give High risk and KRAS-mutated groups poorer survival,
+and KRAS groups different expression profiles. These are demonstration effects,
+not clinical estimates. See [data generation and sources](docs/synthetic-data.md).
 
 - [Local development and fixture generation](docs/local-development.md)
 - [API examples](docs/developer-api.md)
@@ -56,7 +61,8 @@ Application changes belong in their respective repositories.
 
 The environment uses a shared identity and disposable data. Uploads, notebooks,
 and production authorization are not provided. Repository downloads are small
-generated examples; genomic fixtures cover only the six listed genes.
+generated examples; mutation fixtures cover only KRAS, NRAS, TP53, BRAF, DIS3,
+and MYC.
 
 Sandbox code is Apache-2.0. Dependencies retain their own licenses, including
 ProteinPaint's [academic-use license](https://github.com/stjude/proteinpaint/blob/master/LICENSE).

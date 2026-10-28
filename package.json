@@ -4,7 +4,8 @@
   "description": "Synthetic Virtual Lab environment for local development and AWS EKS.",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:ui": "node scripts/ui-smoke.mjs"
+    "test:ui": "node scripts/ui-smoke.mjs",
+    "test:scenarios": "node scripts/ui-scenarios.mjs"
   },
   "repository": {
     "type": "git",

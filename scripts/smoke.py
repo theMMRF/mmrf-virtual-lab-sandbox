@@ -216,8 +216,9 @@ de = {'genome': 'hg38', 'dslabel': 'MMRF', 'samplelst': {'groups': groups}, 'met
       'volcanoRender': {'pixelWidth': 600, 'pixelHeight': 400, 'significanceThresholds': {'pValueCutoff': 1.3, 'pValueType': 'adjusted', 'foldChangeCutoff': 1}}}
 assert call('/protein-paint/termdb/DE', {**de, 'preAnalysis': True})['data'] == {'female': len(female), 'male': len(cases) - len(female)}
 result = call('/protein-paint/termdb/DE', de)
-assert result['data']['totalRows'] == len({v['symbol'] for v in variants}) and result['data']['volcanoPng']
+expression = json.loads((root / 'generated/expression.json').read_text())
+assert result['data']['totalRows'] == len(expression) and result['data']['volcanoPng']
 pseudobulk = call('/protein-paint/termdb/DE', {**de, 'pseudobulk': {'assay': 'geneExpression', 'memberId': 'Cell Type', 'category': 'Plasma'}})
-assert pseudobulk['data']['totalRows'] == len({v['symbol'] for v in variants}) and pseudobulk['data']['volcanoPng']
+assert pseudobulk['data']['totalRows'] == len(expression) and pseudobulk['data']['volcanoPng']
 print('PASS: actual bulk and single-cell pseudobulk differential expression and volcano rendering')
 print('Sandbox integration smoke checks passed')

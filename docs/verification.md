@@ -30,12 +30,17 @@ With the local stack running:
 python3 scripts/smoke.py
 npx playwright install chromium
 npm run test:ui
+npm run test:scenarios
 ```
 
 The API and browser suites cover cohorts, Projects, repository exports/downloads,
 mutation counts and survival, ProteinPaint, bulk expression, and single-cell
 views. Browser tests use an isolated headless Chromium profile and save PNGs in
 `screenshots/`.
+
+The local scenario suite additionally checks all six gene tracks, reference
+sequence rendering, both designed survival comparisons, and native KRAS
+differential expression with at least ten significant genes.
 
 For a deployed sandbox, replace the example hostname:
 
