@@ -56,4 +56,6 @@ in the [IMS/IMWG consensus](https://pubmed.ncbi.nlm.nih.gov/40489728/).
 The same seed and generator version reproduce the same data. Marker assignments
 are random, weighted to make High risk the smaller group, with matching risk
 labels. These weights are arbitrary, not clinical prevalence estimates.
-Assignments are independent of variants, survival, and treatment response.
+TP53 carrier status matches its CGS marker. High risk and KRAS mutations have
+designed survival effects, and KRAS status changes a subset of expression genes.
+See [data generation and sources](synthetic-data.md).

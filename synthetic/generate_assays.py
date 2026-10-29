@@ -1,4 +1,4 @@
-"""Generate independently random assay matrices inside the ProteinPaint build."""
+"""Build assay matrices from the shared synthetic scenario values."""
 import json
 from pathlib import Path
 import random
@@ -11,6 +11,7 @@ from embedding import cell_coordinates
 root = Path('/home/root/pp/tp')
 cases = json.loads((root / 'cases.json').read_text())
 expression = json.loads((root / 'expression.json').read_text())
+counts = json.loads((root / 'counts.json').read_text())
 genes = list(expression)
 samples = [c['sample_id'] for c in cases]
 rng = random.Random(1783)
@@ -25,7 +26,7 @@ def matrix(path, names, values):
 
 
 matrix(root / 'expression.h5', samples, [[expression[g][s] for s in samples] for g in genes])
-matrix(root / 'counts.h5', samples, [[rng.randint(10, 10000) for s in samples] for g in genes])
+matrix(root / 'counts.h5', samples, [[counts[g][s] for s in samples] for g in genes])
 (root / 'singlecell/umap').mkdir(parents=True, exist_ok=True)
 (root / 'singlecell/expression').mkdir(parents=True, exist_ok=True)
 (root / 'singlecell/meta').mkdir(parents=True, exist_ok=True)

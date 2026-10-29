@@ -6,6 +6,12 @@ export default function (_common, refs) {
   const cases = JSON.parse(readFileSync(join(refs.serverconfig.tpmasterdir, 'cases.json')));
   const sampleToCase = new Map(cases.flatMap((record, index) => [[record.sample_id, record.case_id], [index + 1, record.case_id]]));
   const variants = JSON.parse(readFileSync(join(refs.serverconfig.tpmasterdir, 'variants.json')));
+  const kras = new Set(variants.filter(v=>v.symbol==='KRAS').map(v=>v.case_id));
+  function value(record, id) {
+    if (id === 'cgs_risk_category') return record.cgs_risk_key_criteria.cgs_risk_category;
+    if (id === 'kras_status') return kras.has(record.case_id) ? 'Mutated' : 'No mutation';
+    return record[id];
+  }
   function selected(record, index, filter) {
     if (!filter) return true;
     if (typeof filter === 'string') return selected(record, index, JSON.parse(filter));
@@ -20,7 +26,7 @@ export default function (_common, refs) {
     if (tvs.term.type === 'samplelst') {
       match = Object.values(tvs.term.values).some(group => group.list.some(sample => (sample.sampleId || sample.sample) === index + 1));
     } else if (tvs.term.type === 'categorical') {
-      match = tvs.values.some(v => v.key === record[tvs.term.id]);
+      match = tvs.values.some(v => v.key === value(record, tvs.term.id));
     } else if (['integer', 'float'].includes(tvs.term.type)) {
       const value = record[tvs.term.id];
       match = tvs.ranges.some(r => (r.startunbounded || (r.startinclusive ? value >= r.start : value > r.start)) &&

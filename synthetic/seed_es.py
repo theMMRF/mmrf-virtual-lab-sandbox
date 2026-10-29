@@ -157,7 +157,10 @@ if __name__ == "__main__":
         gene = {"gene_id": v["gene_id"], "symbol": v["symbol"], "name": "Synthetic " + v["symbol"], "biotype": "protein_coding", "is_cancer_gene_census": True}
         mutation = {"ssm_id": v['ssm_id'], "chromosome": v["chr"], "start_position": v["pos"],
                     "end_position": v["pos"] + len(v['ref']) - 1, "reference_allele": v["ref"], "tumor_allele": v["alt"],
-                    "mutation_type": "Simple Somatic Mutation", "mutation_subtype": 'SNP' if len(v['ref']) == len(v['alt']) == 1 else 'INS' if len(v['alt']) > len(v['ref']) else 'DEL',
+                    "mutation_type": "Simple Somatic Mutation", "mutation_subtype": (
+                        'SNP' if len(v['ref']) == len(v['alt']) == 1 else
+                        'MNV' if len(v['ref']) == len(v['alt']) else
+                        'INS' if len(v['alt']) > len(v['ref']) else 'DEL'),
                     "genomic_dna_change": f"{v['chr']}:g.{v['pos']}{v['ref']}>{v['alt']}"}
         mutation['observation'] = [{'observation_id': f'SYNTH-OBS-{number:04d}', 'sample': {'sample_id': v['sample_id']}}]
         score = (v['pos'] % 10) / 10

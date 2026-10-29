@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import random
 import sqlite3
@@ -72,22 +73,175 @@ def file_payload(extension, sample, sequence):
     return text[extension].encode()
 
 
+# Public protein sequences are reference annotations, never patient observations.
+PUBLIC_PROTEINS = json.loads((Path(__file__).with_name('public-proteins.json')).read_text())
+# Public protein hotspots; weights and genomic coordinates below are artificial.
+HOTSPOTS = {
+    'KRAS': [('G12D', 22), ('G12V', 15), ('G12C', 6), ('G13D', 12), ('Q61H', 22), ('Q61R', 8), ('Q61L', 6), ('A146T', 4), ('K117N', 3)],
+    'NRAS': [('Q61R', 36), ('Q61K', 26), ('Q61H', 18), ('G12D', 10), ('G13R', 10)],
+    'TP53': [('R175H', 20), ('R248Q', 20), ('R248W', 12), ('R273H', 18), ('R273C', 10), ('R282W', 10), ('Y220C', 10)],
+    'BRAF': [('V600E', 55), ('D594N', 15), ('G469A', 12), ('K601E', 10), ('N581S', 8)],
+    'DIS3': [('R780K', 45), ('S477R', 30), ('G766R', 25)],
+    # MYC coding examples are pan-cancer references, not myeloma hotspots.
+    'MYC': [('T58A', 65), ('T58I', 35)],
+}
+EXPRESSION_GENES = [g[0] for g in GENES] + [
+    'DUSP6', 'ETV4', 'ETV5', 'SPRY2', 'FOS', 'JUN', 'MAPK1', 'MAPK3',
+    'MKI67', 'PCNA', 'E2F1', 'CCND1', 'CCND2', 'MCL1', 'BCL2', 'STAT3',
+    'IRF4', 'XBP1', 'PRDM1', 'HSPA5', 'CD38', 'SDC1', 'FGFR3', 'NSD2',
+    'TRAF3', 'IL6R', 'B2M', 'ACTB', 'GAPDH', 'RPLP0',
+]
+EXPRESSION_MODELS = GENES + [
+    (symbol, PUBLIC_PROTEINS[symbol]['gene_id'], 'chr1', 100000 + i * 10000)
+    for i, symbol in enumerate(EXPRESSION_GENES[6:])
+]
+REFERENCE_LENGTH = 500000
+CODONS = {
+    'A': 'GCT', 'C': 'TGT', 'D': 'GAT', 'E': 'GAA', 'F': 'TTT', 'G': 'GGT',
+    'H': 'CAT', 'I': 'ATT', 'K': 'AAA', 'L': 'CTT', 'M': 'ATG', 'N': 'AAT',
+    'P': 'CCT', 'Q': 'CAA', 'R': 'CGT', 'S': 'TCT', 'T': 'ACT', 'V': 'GTT',
+    'W': 'TGG', 'Y': 'TAT',
+}
+
+
+def coding_sequence(symbol):
+    """Back-translate a bundled reference protein into deterministic coding DNA."""
+    return ''.join(CODONS[aa] for aa in PUBLIC_PROTEINS[symbol]['sequence'])
+
+
+def protein_annotations(symbol):
+    """Supply native protein bands, including a labeled full-sequence backdrop."""
+    protein = PUBLIC_PROTEINS[symbol]
+    domains = [{'name': 'Reference sequence', 'description': protein['accession'],
+                'start': 1, 'stop': len(protein['sequence']), 'color': '#e4e9ee'}]
+    colors = {'Domain': '#ffc574', 'DNA binding': '#8dd3c7',
+              'Zinc finger': '#beaeda', 'Region': '#c8df86', 'Motif': '#91c4e3'}
+    for feature in protein.get('features', []):
+        domain = {'name': feature['description'], 'description': feature['type'],
+                  'start': feature['start'], 'stop': feature['stop'], 'color': colors[feature['type']],
+                  'url': feature['source']}
+        domains.append(domain)
+    return domains
+
+
+def validate_reference_models():
+    """Reject overlapping or out-of-bounds models before writing any fixtures."""
+    spans = defaultdict(list)
+    for symbol, _, chrom, start in EXPRESSION_MODELS:
+        stop = start + len(coding_sequence(symbol))
+        if start < 0 or stop > REFERENCE_LENGTH:
+            raise ValueError(f'{symbol} lies outside the synthetic reference')
+        spans[chrom].append((start, stop, symbol))
+    for chrom, models in spans.items():
+        models.sort()
+        for (_, stop, first), (start, _, second) in zip(models, models[1:]):
+            if stop > start:
+                raise ValueError(f'{first} overlaps {second} on {chrom}')
+
+
 def variant_templates(symbol, gid, chrom, start):
-    # All offsets and amino-acid annotations below are invented, not clinical hotspots.
-    kinds = [('M', 'missense_variant', 'A', 'T'), ('M', 'missense_variant', 'A', 'G'),
-             ('N', 'stop_gained', 'A', 'T'), ('P', 'splice_region_variant', 'A', 'C'),
-             ('F', 'frameshift_variant', 'A', 'AT'), ('D', 'inframe_deletion', 'AAAA', 'A'),
-             ('I', 'inframe_insertion', 'A', 'ATTT'), ('S', 'synonymous_variant', 'A', 'G')]
+    """Combine public protein-change labels with invented background variants."""
+    protein = PUBLIC_PROTEINS[symbol]['sequence']
     result = []
-    for index, (kind, consequence, ref, alt) in enumerate(kinds):
-        offset = [61, 142, 379, 712, 925, 1183, 1534, 1798][index]
-        aa = offset // 3 + 1
-        name = {'M': f'p.A{aa}T', 'N': f'p.A{aa}*', 'P': f'c.{offset}+2A>C',
-                'F': f'p.A{aa}fs', 'D': f'p.A{aa}del', 'I': f'p.A{aa}insF', 'S': f'p.A{aa}='}[kind]
-        result.append({'ssm_id': f'SYNTH-SSM-{symbol}-{index+1:02d}', 'gene_id': gid, 'symbol': symbol,
-                       'chr': chrom, 'pos': start + offset, 'ref': ref, 'alt': alt,
-                       'class': kind, 'consequence': consequence, 'mname': name})
+
+    def add(name, aa, kind, consequence, ref, alt, offset, weight, reference):
+        # Trim unchanged bases for every substitution, including synonymous and
+        # stop-gained backgrounds, so single-base changes remain SNPs.
+        if len(ref) == len(alt):
+            while len(ref) > 1 and ref[-1] == alt[-1]:
+                ref, alt = ref[:-1], alt[:-1]
+            while len(ref) > 1 and ref[0] == alt[0]:
+                ref, alt, offset = ref[1:], alt[1:], offset + 1
+        result.append({'ssm_id': f'SYNTH-SSM-{symbol}-{len(result)+1:02d}',
+                       'gene_id': gid, 'symbol': symbol, 'chr': chrom,
+                       'pos': start + offset + 1, 'ref': ref, 'alt': alt,
+                       'class': kind, 'consequence': consequence, 'mname': name,
+                       'aa_position': aa, 'weight': weight, 'public_protein_example': reference})
+    for change, weight in HOTSPOTS[symbol]:
+        aa = int(change[1:-1])
+        assert protein[aa - 1] == change[0], (symbol, change)
+        ref, alt = CODONS[change[0]], CODONS[change[-1]]
+        # Use a short replacement in the synthetic back-translated reference.
+        offset = (aa - 1) * 3
+        add('p.' + change, aa, 'M', 'missense_variant', ref, alt, offset, weight, True)
+    # Low-frequency invented background variants demonstrate the other classes.
+    # Their annotations and positions are deliberately not asserted as public hotspots.
+    for frac, kind, consequence in [
+        (0.30, 'N', 'stop_gained'), (0.43, 'P', 'splice_region_variant'),
+        (0.58, 'F', 'frameshift_variant'), (0.72, 'D', 'inframe_deletion'),
+        (0.83, 'I', 'inframe_insertion'), (0.92, 'S', 'synonymous_variant'),
+    ]:
+        aa = max(2, int(len(protein) * frac))
+        residue = protein[aa - 1]
+        ref, offset = CODONS[residue], (aa - 1) * 3
+        if kind == 'N':
+            alt, name = 'TAA', f'p.{residue}{aa}*'
+        elif kind == 'P':
+            ref = ref[0]
+            alt = 'C' if ref != 'C' else 'A'
+            name = f'c.{offset + 1}+2{ref}>{alt}'
+        elif kind == 'F':
+            ref = ref[0]
+            alt, name = ref + 'T', f'p.{residue}{aa}fs'
+        elif kind == 'D':
+            ref = CODONS[protein[aa - 2]] + ref
+            alt, offset, name = ref[:3], offset - 3, f'p.{residue}{aa}del'
+        elif kind == 'I':
+            ref = ref[0]
+            alt, name = ref + 'TTT', f'p.{residue}{aa}insF'
+        else:
+            # Select a residue with a synonymous third-base substitution.
+            while protein[aa - 1] in 'MW':
+                aa -= 1
+            residue = protein[aa - 1]
+            ref, offset = CODONS[residue], (aa - 1) * 3
+            alt = ref[:-1] + ('C' if ref[-1] == 'T' else 'G')
+            name = f'p.{residue}{aa}='
+        add(name, aa, kind, consequence, ref, alt, offset, 3, False)
     return result
+
+
+def apply_demo_outcomes(cases, variants, seed):
+    """Designed demo effects, not estimated clinical hazard ratios."""
+    rng = random.Random(seed + 4109)
+    kras = {v['case_id'] for v in variants if v['symbol'] == 'KRAS'}
+    for case in cases:
+        high = case['cgs_risk_key_criteria']['cgs_risk_category'] == 'High risk'
+        scale = 6500 * (0.32 if high else 1) * (0.50 if case['case_id'] in kras else 1)
+        event = max(30, round(rng.weibullvariate(scale, 1.3)))
+        censor = rng.randint(1800, 4200)
+        dead, days = event <= censor, min(event, censor)
+        case['vital_status'] = 'Dead' if dead else 'Alive'
+        case['days_to_death'] = days if dead else None
+        case['days_to_last_follow_up'] = days
+        case['demographic'].update(vital_status=case['vital_status'], days_to_death=case['days_to_death'])
+        case['diagnoses'][0]['days_to_last_follow_up'] = days
+        case['outcomes'] = {'censor_os': int(dead), 'censor_pfs': int(dead),
+                            'surivival_time_os': days, 'survival_time_pfs': days}
+
+
+def make_expression(out, cases, variants, seed):
+    """Shared latent modules give uneven clustering and a KRAS comparison signal."""
+    rng = random.Random(seed + 7223)
+    kras = {v['case_id'] for v in variants if v['symbol'] == 'KRAS'}
+    expression = {gene: {} for gene in EXPRESSION_GENES}
+    counts = {gene: {} for gene in EXPRESSION_GENES}
+    baselines = {gene: rng.uniform(3, 5) for gene in EXPRESSION_GENES}
+    # Effects are arbitrary demonstration signatures, not inferred gene biology.
+    for case in cases:
+        module = rng.choices([0, 1, 2, 3], weights=[52, 27, 15, 6])[0]
+        latent = [rng.gauss(0, .30) for _ in range(4)]
+        library = rng.lognormvariate(0, .18)
+        for index, gene in enumerate(EXPRESSION_GENES):
+            kras_effect = (1.45 if index % 2 == 0 else -1.2) if index < 16 and case['case_id'] in kras else 0
+            module_effect = (1.3 if module == index % 4 else -.25) + latent[index % 4]
+            log_value = baselines[gene] + kras_effect + module_effect + rng.gauss(0, .20)
+            value = round(math.exp(log_value), 4)
+            expression[gene][case['sample_id']] = value
+            counts[gene][case['sample_id']] = max(1, round(value * library * 30 * rng.lognormvariate(0, .12)))
+    write_json(out / 'expression.json', expression)
+    write_json(out / 'counts.json', counts)
+    return expression, counts
 
 
 def fill_field(record, path, value):
@@ -110,11 +264,11 @@ def cgs_fixture(rng):
     """Random demonstration markers, with mutually consistent CGS facet labels.
 
     This is a fixture vocabulary, not a classifier for genomic/clinical input.
-    These assignments do not control variants, survival, or treatment response.
+    Risk labels control the designed survival scenario. The TP53 marker also controls TP53 variant presence.
     """
     # Arbitrary fixture weights keep High risk a minority, not an estimate of
     # clinical prevalence. Categories still follow the assigned criteria.
-    del17p, tp53, gain1q = (rng.random() < probability for probability in (.05, .05, .2))
+    del17p, tp53, gain1q = (rng.random() < probability for probability in (.05, .12, .2))
     igh = rng.choices((None, 't(4;14)', 't(14;16)', 't(14;20)'), weights=(70, 10, 10, 10))[0]
     del1p = rng.choices(('Absent', 'Monoallelic', 'Biallelic'), weights=(85, 13, 2))[0]
     high_b2m, normal_creatinine = rng.random() < .1, rng.random() < .7
@@ -142,8 +296,10 @@ def cgs_fixture(rng):
 
 
 def generate(out, count=1000, seed=42):
+    """Write a reproducible, connected fixture set without patient input."""
     if not 10 <= count <= 1000:
         raise ValueError("Choose between 10 and 1000 synthetic cases")
+    validate_reference_models()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
@@ -223,35 +379,52 @@ def generate(out, count=1000, seed=42):
     for gene_index, (symbol, gid, chrom, start) in enumerate(GENES):
         templates = variant_templates(symbol, gid, chrom, start)
         for number, case in enumerate(records, 1):
-            # Artificial differences by project, not inferred biological/demographic associations.
-            probability = 0.60 if gene_index == 0 else 0.42 + 0.08 * (case['project_id'] == 'SYNTHETIC-RNA')
+            # Arbitrary carrier frequencies, not inferred demographic associations.
+            probability = [0.45, 0.35, 0.12, 0.22, 0.28, 0.20][gene_index]
+            if symbol == 'TP53':
+                probability = int('TP53 mutation: Present' in case['cgs_risk_key_criteria']['other_criteria'])
             if mutation_rng.random() < probability:
-                weights = [55, 21, 6, 5, 4, 3, 3, 3] if case['project_id'] == 'SYNTHETIC-MM' else [36, 40, 6, 5, 4, 3, 3, 3]
+                weights = [v['weight'] for v in templates]
                 variant = mutation_rng.choices(templates, weights=weights, k=1)[0]
                 variants.append({**variant, "case_id": case["case_id"], "sample_id": case["sample_id"], "sample": number})
+    apply_demo_outcomes(records, variants, seed)
+    _, expression_counts = make_expression(out, records, variants, seed)
+    gene_ids = {gene[0]: gene[1] for gene in EXPRESSION_MODELS}
     for case, file in zip(records, files):
+        if file['data_format'] == 'TSV':
+            payload = ('gene_id\tsample_id\tsynthetic_count\n' + ''.join(
+                f"{gene_ids[gene]}\t{case['sample_id']}\t{expression_counts[gene][case['sample_id']]}\n"
+                for gene in EXPRESSION_GENES)).encode()
+            (out / file['file_name']).write_bytes(payload)
+            file['file_size'] = len(payload)
+            file['md5sum'] = hashlib.md5(payload, usedforsecurity=False).hexdigest()
         case['files'] = [{key: value for key, value in file.items() if key != 'cases'}]
     write_json(out / "cases.json", records)
     write_json(out / "files.json", files)
     write_json(out / "variants.json", variants)
-    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 4, "seed": seed,
-                                         "cases": count, "source": "Seeded pseudorandom generation; no patient inputs"})
-    make_termdb(out, records)
+    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 6, "seed": seed,
+                                         "cases": count, "source": "Seeded synthetic demo scenarios; no patient inputs",
+                                         "reference_proteins": {g: p["source"] for g,p in PUBLIC_PROTEINS.items()},
+                                         "survival_effects": "Designed poorer outcomes for high-risk and KRAS-mutated groups; not clinical estimates"})
+    make_termdb(out, records, variants)
     make_gene_db(out)
     make_vcf(out, records, variants)
-    write_json(out / "expression.json", {g[0]: {c["sample_id"]: round(rng.uniform(0.1, 100), 3) for c in records} for g in GENES})
     with (out / 'synthetic.fa').open('w') as fasta, (out / 'synthetic.fa.fai').open('w') as fai:
         for chrom in sorted({g[2] for g in GENES}):
             fasta.write(f'>{chrom}\n')
             offset = fasta.tell()
-            sequence = [rng.choice('ACGT') for _ in range(100000)]
+            sequence = [rng.choice('ACGT') for _ in range(REFERENCE_LENGTH)]
             for variant in variants:
                 if variant['chr'] == chrom:
                     sequence[variant['pos'] - 1:variant['pos'] - 1 + len(variant['ref'])] = list(variant['ref'])
+            for symbol, _, gene_chrom, gene_start in EXPRESSION_MODELS:
+                if gene_chrom == chrom:
+                    cds = coding_sequence(symbol)
+                    sequence[gene_start:gene_start + len(cds)] = list(cds)
             sequence = ''.join(sequence)
             for start in range(0, len(sequence), 80):
                 fasta.write(sequence[start:start + 80] + '\n')
-            fai.write(f'{chrom}\t100000\t{offset}\t80\t81\n')
+            fai.write(f'{chrom}\t{REFERENCE_LENGTH}\t{offset}\t80\t81\n')
     with (out / 'bulk-umap.tsv').open('w') as scatter:
         scatter.write('sample\tlabel\tx\ty\n')
         for index, case in enumerate(records):
@@ -261,7 +434,7 @@ def generate(out, count=1000, seed=42):
     return records, files, variants
 
 
-def make_termdb(out, cases):
+def make_termdb(out, cases, variants):
     path = out / "termdb.sqlite"
     path.unlink(missing_ok=True)
     db = sqlite3.connect(path)
@@ -283,18 +456,26 @@ CREATE TABLE survival (sample INTEGER, term_id TEXT, tte REAL, exit_code INTEGER
 CREATE TABLE buildDate (date TEXT);
 INSERT INTO buildDate VALUES ('synthetic-v1');
 """)
-    fields = [("gender", "Gender", "categorical"), ("race", "Race", "categorical"),
+    kras = {v['case_id'] for v in variants if v['symbol'] == 'KRAS'}
+    fields = [("cgs_risk_category", "CGS risk category", "categorical"),
+              ("kras_status", "KRAS mutation status", "categorical"), ("gender", "Gender", "categorical"), ("race", "Race", "categorical"),
               ("vital_status", "Vital status", "categorical"), ("age_at_index", "Age at diagnosis", "integer"),
               ("therapeutic_agents", "Synthetic treatment", "categorical")]
+    def field_value(case, key):
+        if key == 'cgs_risk_category':
+            return case['cgs_risk_key_criteria']['cgs_risk_category']
+        if key == 'kras_status':
+            return 'Mutated' if case['case_id'] in kras else 'No mutation'
+        return case[key]
     for order, (key, label, kind) in enumerate(fields):
         term = {"id": key, "name": label, "type": kind, "isleaf": True}
         if kind == "categorical":
-            term["values"] = {v: {"label": v} for v in sorted({c[key] for c in cases})}
+            term["values"] = {v: {"label": v} for v in sorted({field_value(c, key) for c in cases})}
         db.execute("INSERT INTO terms VALUES (?,?,?,?,?,?,?)", (key, label, None, json.dumps(term), order, kind, 1))
         db.execute("INSERT INTO alltermsbyorder VALUES (?,?)", ("", key))
         db.execute("INSERT INTO subcohort_terms VALUES (?,?,?,?,?)", ("", key, len(cases), kind, ""))
         for number, case in enumerate(cases, 1):
-            db.execute(f"INSERT INTO anno_{kind} VALUES (?,?,?)", (number, key, case[key]))
+            db.execute(f"INSERT INTO anno_{kind} VALUES (?,?,?)", (number, key, field_value(case, key)))
     term = {"id": "overall_survival", "name": "Synthetic overall survival", "type": "survival", "isleaf": True,
             "unit": "years", "values": {"0": {"label": "Censored"}, "1": {"label": "Death"}}}
     db.execute("INSERT INTO terms VALUES (?,?,?,?,?,?,?)", (term["id"], term["name"], None, json.dumps(term), 9, "survival", 1))
@@ -319,17 +500,21 @@ CREATE TABLE gene2coord (name TEXT COLLATE NOCASE, chr TEXT, start INTEGER, stop
 CREATE TABLE gene2canonicalisoform (gene TEXT COLLATE NOCASE, isoform TEXT);
 CREATE TABLE codingGenes (name TEXT COLLATE NOCASE);
 """)
-    for symbol, gid, chrom, start in GENES:
-        model = {"name": symbol, "isoform": gid, "chr": chrom, "start": start, "stop": start + 2000,
-                 "strand": "+", "codingstart": start, "codingstop": start + 2000,
-                 "exon": [[start, start + 2000]], "coding": [[start, start + 2000]], "isdefault": True}
+    for symbol, gid, chrom, start in EXPRESSION_MODELS:
+        cds = coding_sequence(symbol)
+        stop = start + len(cds)
+        model = {"name": symbol, "isoform": gid, "chr": chrom, "start": start, "stop": stop,
+                 "strand": "+", "codingstart": start, "codingstop": stop, "cdslen": len(cds), "rnalen": len(cds),
+                 "genomicseq": cds, "aaseq": PUBLIC_PROTEINS[symbol]['sequence'],
+                 "pdomains": protein_annotations(symbol), "domain_hidden": {},
+                 "exon": [[start, stop]], "coding": [[start, stop]], "isdefault": True}
         db.execute("INSERT INTO genes VALUES (?,?,?,?)", (symbol, gid, 1, json.dumps(model)))
         db.execute("INSERT INTO genealias VALUES (?,?)", (gid, symbol))
         if symbol == 'MYC':
             for alias in ('c-Myc', 'ENST00000621592', 'NM_002467', 'NM_002467.1'):
                 db.execute("INSERT INTO genealias VALUES (?,?)", (alias, symbol))
             db.execute("INSERT INTO refseq2ensembl VALUES (?,?)", (gid, 'NM_002467'))
-        db.execute("INSERT INTO gene2coord VALUES (?,?,?,?)", (symbol, chrom, start, start + 2000))
+        db.execute("INSERT INTO gene2coord VALUES (?,?,?,?)", (symbol, chrom, start, stop))
         db.execute("INSERT INTO gene2canonicalisoform VALUES (?,?)", (symbol, gid))
         db.execute("INSERT INTO codingGenes VALUES (?)", (symbol,))
     db.commit()
@@ -340,7 +525,7 @@ def make_vcf(out, cases, variants):
     with (out / "variants.vcf").open("w") as handle:
         handle.write('##fileformat=VCFv4.2\n##source=MMRF-synthetic-generator\n')
         for chrom in sorted({g[2] for g in GENES}):
-            handle.write(f'##contig=<ID={chrom},length=100000>\n')
+            handle.write(f'##contig=<ID={chrom},length={REFERENCE_LENGTH}>\n')
         handle.write('##INFO=<ID=CSQ,Number=.,Type=String,Description="Synthetic annotations. Format: Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|EXON|INTRON|HGVSc|HGVSp">\n')
         handle.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
         handle.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t' + '\t'.join(c['sample_id'] for c in cases) + '\n')
@@ -352,6 +537,9 @@ def make_vcf(out, cases, variants):
             impact = 'HIGH' if var['class'] in ('F', 'N') else 'MODERATE'
             csq = f"{var['alt']}|{var['consequence']}|{impact}|{var['symbol']}|{var['gene_id']}|Transcript|{var['gene_id']}|protein_coding|1|||{var['mname']}"
             carriers = {variant['sample_id'] for variant in group}
+            # This somatic track treats any non-missing call as a carrier.
+            # Non-carriers therefore have no track call; absence is recorded
+            # explicitly in case membership and the KRAS-status term.
             genotypes = ['0/1' if c['sample_id'] in carriers else './.' for c in cases]
             handle.write(f"{var['chr']}\t{var['pos']}\t{var['ssm_id']}\t{var['ref']}\t{var['alt']}\t100\tPASS\tCSQ={csq}\tGT\t" + '\t'.join(genotypes) + '\n')
 
