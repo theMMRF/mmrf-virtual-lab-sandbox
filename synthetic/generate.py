@@ -109,6 +109,22 @@ def coding_sequence(symbol):
     return ''.join(CODONS[aa] for aa in PUBLIC_PROTEINS[symbol]['sequence'])
 
 
+def protein_annotations(symbol):
+    """Supply native protein bands, including a labeled full-sequence backdrop."""
+    protein = PUBLIC_PROTEINS[symbol]
+    domains = [{'name': 'Reference sequence', 'description': protein['accession'],
+                'start': 1, 'stop': len(protein['sequence']), 'color': '#e4e9ee'}]
+    colors = {'Domain': '#ffc574', 'DNA binding': '#8dd3c7',
+              'Zinc finger': '#beaeda', 'Region': '#c8df86', 'Motif': '#91c4e3'}
+    for feature in protein.get('features', []):
+        domain = {'name': feature['description'], 'description': feature['type'],
+                  'start': feature['start'], 'stop': feature['stop'], 'color': colors[feature['type']]}
+        if 'pfam' in feature:
+            domain['pfam'] = feature['pfam']
+        domains.append(domain)
+    return domains
+
+
 def validate_reference_models():
     """Reject overlapping or out-of-bounds models before writing any fixtures."""
     spans = defaultdict(list)
@@ -387,7 +403,7 @@ def generate(out, count=1000, seed=42):
     write_json(out / "cases.json", records)
     write_json(out / "files.json", files)
     write_json(out / "variants.json", variants)
-    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 5, "seed": seed,
+    write_json(out / "provenance.json", {"synthetic": True, "generator_version": 6, "seed": seed,
                                          "cases": count, "source": "Seeded synthetic demo scenarios; no patient inputs",
                                          "reference_proteins": {g: p["source"] for g,p in PUBLIC_PROTEINS.items()},
                                          "survival_effects": "Designed poorer outcomes for high-risk and KRAS-mutated groups; not clinical estimates"})
@@ -491,6 +507,7 @@ CREATE TABLE codingGenes (name TEXT COLLATE NOCASE);
         model = {"name": symbol, "isoform": gid, "chr": chrom, "start": start, "stop": stop,
                  "strand": "+", "codingstart": start, "codingstop": stop, "cdslen": len(cds), "rnalen": len(cds),
                  "genomicseq": cds, "aaseq": PUBLIC_PROTEINS[symbol]['sequence'],
+                 "pdomains": protein_annotations(symbol), "domain_hidden": {},
                  "exon": [[start, stop]], "coding": [[start, stop]], "isdefault": True}
         db.execute("INSERT INTO genes VALUES (?,?,?,?)", (symbol, gid, 1, json.dumps(model)))
         db.execute("INSERT INTO genealias VALUES (?,?)", (gid, symbol))

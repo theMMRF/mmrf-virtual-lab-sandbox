@@ -88,6 +88,13 @@ class SyntheticIntegrity(unittest.TestCase):
                     model = json.loads(db.execute('select genemodel from genes where name=?', (symbol,)).fetchone()[0])
                     protein = generator.PUBLIC_PROTEINS[symbol]['sequence']
                     self.assertEqual(model['aaseq'], protein)
+                    self.assertGreaterEqual(len(model['pdomains']), 2, symbol)
+                    self.assertEqual(model['pdomains'][0]['name'], 'Reference sequence')
+                    self.assertEqual((model['pdomains'][0]['start'], model['pdomains'][0]['stop']), (1, len(protein)))
+                    for feature in model['pdomains']:
+                        self.assertGreaterEqual(feature['start'], 1)
+                        self.assertLessEqual(feature['stop'], len(protein))
+                        self.assertLessEqual(feature['start'], feature['stop'])
                     self.assertEqual(model['cdslen'], 3 * len(protein))
                     self.assertEqual(len(model['genomicseq']), model['codingstop'] - model['codingstart'])
                     for variant in generator.variant_templates(symbol, gid, chrom, start):
@@ -101,6 +108,11 @@ class SyntheticIntegrity(unittest.TestCase):
                             self.assertEqual(protein[variant['aa_position'] - 1], variant['mname'][2])
                 kras = json.loads(db.execute("select genemodel from genes where name='KRAS'").fetchone()[0])
                 self.assertEqual(len(kras['aaseq']), 188)
+                ras = next(d for d in kras['pdomains'] if d['name'] == 'Ras')
+                self.assertEqual((ras['start'], ras['stop']), (5, 164))
+                myc = json.loads(db.execute("select genemodel from genes where name='MYC'").fetchone()[0])
+                bhlh = next(d for d in myc['pdomains'] if d['name'] == 'bHLH')
+                self.assertEqual((bhlh['start'], bhlh['stop']), (354, 406))
 
     def test_all_id_spaces_and_reproducibility(self):
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:

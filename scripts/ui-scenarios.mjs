@@ -33,6 +33,7 @@ try {
     const carriers = variants.filter(v => v.symbol === symbol);
     await expect(page.getByText(`${new Set(carriers.map(v => v.ssm_id)).size} variants`, {exact: true})).toBeVisible({timeout: 30000});
     await expect(page.getByText(`${new Set(carriers.map(v => v.case_id)).size} samples`, {exact: true})).toBeVisible({timeout: 30000});
+    await expect(page.locator('svg rect[fill="#e4e9ee"]')).toBeVisible();
     if (symbol === 'KRAS') {
       const residues = page.locator('svg text').filter({hasText: /^[ACDEFGHIKLMNPQRSTVWY]$/});
       await expect(residues).toHaveCount(188);
@@ -43,6 +44,33 @@ try {
     }
   }
   console.log('PASS: all six native gene tracks match carrier counts; KRAS renders its 188 reference residues and hotspots');
+
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({width, height: 1000});
+    for (const symbol of ['KRAS', 'NRAS', 'TP53', 'BRAF', 'DIS3', 'MYC']) {
+      await open('ProteinPaint');
+      const search = page.getByRole('searchbox', {name: 'Gene symbol, position, or alias'});
+      await search.fill(symbol);
+      await search.press('Enter');
+      // The native viewer hides letters when they cannot fit. Both the full
+      // reference band and real feature bands must still be drawn at that scale.
+      await expect(page.locator('svg rect[fill="#e4e9ee"]')).toBeVisible({timeout: 30000});
+      await expect(page.locator('svg rect[fill="#ffc574"], svg rect[fill="#8dd3c7"]')).not.toHaveCount(0);
+      if (!['KRAS', 'MYC'].includes(symbol)) continue;
+      await capture(`${symbol.toLowerCase()}-${width}-domains`);
+      const residues = page.locator('svg text').filter({hasText: /^[ACDEFGHIKLMNPQRSTVWY]$/});
+      for (let zoom = 0; zoom < 3 && await residues.count() === 0; zoom++) {
+        await page.getByText('In', {exact: true}).click();
+        await page.waitForTimeout(700);
+      }
+      await expect(residues).not.toHaveCount(0);
+      const sequence = (await residues.allTextContents()).join('');
+      expect(proteins[symbol].sequence.includes(sequence)).toBe(true);
+      await capture(`${symbol.toLowerCase()}-${width}-sequence`);
+    }
+  }
+  await page.setViewportSize({width: 1800, height: 1100});
+  console.log('PASS: all six protein tracks retain feature bands at normal window sizes; KRAS and MYC letters appear on native zoom');
 
   for (const [term, worse, better, minimumGap, name] of [
     ['CGS risk category', 'High risk', 'Standard risk', .15, 'risk-survival'],

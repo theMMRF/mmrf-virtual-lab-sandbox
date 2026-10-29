@@ -46,3 +46,16 @@ Public variant examples:
 MYC coding examples come from lymphoma research, not common myeloma coding
 hotspots. Its reference isoform is UniProt P01106-1, which uses the conventional
 T58 numbering; KRAS uses the 188-amino-acid P01116-2 isoform.
+
+The six mutation-panel proteins also include public UniProt feature annotations
+(retrieved 2026-10-29), projected to the selected isoforms. MYC's bHLH feature
+therefore uses positions 354–406 in P01106-1. The KRAS/NRAS Ras-domain interval
+comes from [Pfam PF00071 through InterPro](https://www.ebi.ac.uk/interpro/entry/pfam/PF00071/),
+whose data are [CC0](https://interpro-documentation.readthedocs.io/en/latest/license.html).
+Each stored feature records its source and original interval; KRAS's conserved
+core maps without coordinate-changing insertions or deletions.
+
+ProteinPaint shows these feature bands and a labeled reference-sequence
+backdrop at the full-protein scale. Amino-acid letters appear once zoomed far
+enough to fit; use **In** above the track. This preserves the native viewer's
+behavior on smaller screens without leaving a blank protein bar.
