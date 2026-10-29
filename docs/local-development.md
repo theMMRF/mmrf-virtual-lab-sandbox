@@ -53,3 +53,7 @@ The same seed and generator version reproduce the same data. Marker assignments
 are random, weighted to make High risk the smaller group, with matching risk
 labels. These weights are arbitrary, not clinical prevalence estimates.
 Assignments are independent of variants, survival, and treatment response.
+
+To compare saved cohorts in Differential Expression, click **Add group**, open
+**Cohort**, and select a saved Virtual Lab cohort. Repeat for the second group,
+submit, and check the expression-data counts before running the analysis.

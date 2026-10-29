@@ -50,3 +50,10 @@ SANDBOX_ORIGIN=https://DISTRIBUTION.cloudfront.net \
 anonymous-access rejection, and the authenticated case count. Deployment and
 teardown also require testing in the target account; mocks cannot establish
 account permissions, quotas, or network-policy enforcement.
+
+## Saved cohorts in differential expression
+
+Run `npm run test:cohorts` with the local stack running. The test queries KRAS
+case IDs, imports both case lists through the cohort UI, selects the saved
+cohorts in Differential Expression, and runs the native analysis. It saves
+screenshots and request evidence in `screenshots/`.
