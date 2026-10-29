@@ -11,10 +11,9 @@ const variants = JSON.parse(await readFile(new URL('../generated/variants.json',
 const cases = JSON.parse(await readFile(new URL('../generated/cases.json', import.meta.url)));
 const proteins = JSON.parse(await readFile(new URL('../synthetic/public-proteins.json', import.meta.url)));
 await mkdir('screenshots', {recursive: true});
-const browser = await chromium.launch({headless: true});
-const page = await browser.newPage({viewport: {width: 1800, height: 1100}});
+let browser;
+let page;
 const errors = [];
-page.on('pageerror', error => errors.push(error.message));
 async function open(app) {
   await page.goto(`${origin}/?app=${app}`, {waitUntil: 'domcontentloaded'});
   await expect(page.getByText('Synthetic sandbox — all data is fabricated and has no clinical meaning.', {exact: true})).toBeVisible();
@@ -32,6 +31,9 @@ async function expectInViewport(elements) {
   }
 }
 try {
+  browser = await chromium.launch({headless: true});
+  page = await browser.newPage({viewport: {width: 1800, height: 1100}});
+  page.on('pageerror', error => errors.push(error.message));
   for (const symbol of ['KRAS', 'NRAS', 'TP53', 'BRAF', 'DIS3', 'MYC']) {
     await open('ProteinPaint');
     const search = page.getByRole('searchbox', {name: 'Gene symbol, position, or alias'});
@@ -134,9 +136,20 @@ try {
   console.log(`PASS: native differential expression returns ${significant.length} significant genes for KRAS-mutated versus remaining cases`);
   expect(errors).toEqual([]);
 } catch (error) {
-  await capture('scenario-failure');
-  console.error(await page.locator('body').innerText());
+  if (page && !page.isClosed()) {
+    try {
+      await capture('scenario-failure');
+      console.error(await page.locator('body').innerText());
+    } catch (diagnosticError) {
+      console.error('Could not capture scenario failure details:', diagnosticError);
+    }
+  }
   throw error;
 } finally {
-  await browser.close();
+  if (browser) {
+    await browser.close().catch(error => {
+      console.error('Could not close the scenario browser:', error);
+      process.exitCode = 1;
+    });
+  }
 }
