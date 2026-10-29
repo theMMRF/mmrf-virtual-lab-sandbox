@@ -39,6 +39,10 @@ and file identifiers stay consistent across the generated services.
 Run `python3 scripts/smoke.py`. For browser tests and screenshots, see
 [validation](verification.md).
 
+To compare saved cohorts in Differential Expression, click **Add group**, open
+**Cohort**, and select a saved Virtual Lab cohort. Repeat for the second group,
+submit, and check the expression-data counts before running the analysis.
+
 The frontend build flag `NEXT_PUBLIC_SYNTHETIC_SANDBOX=1` enables the banner and
 disables analytics. The identity gateway supplies the session and API routing;
 the flag alone does not provide a running backend.
@@ -53,7 +57,3 @@ The same seed and generator version reproduce the same data. Marker assignments
 are random, weighted to make High risk the smaller group, with matching risk
 labels. These weights are arbitrary, not clinical prevalence estimates.
 Assignments are independent of variants, survival, and treatment response.
-
-To compare saved cohorts in Differential Expression, click **Add group**, open
-**Cohort**, and select a saved Virtual Lab cohort. Repeat for the second group,
-submit, and check the expression-data counts before running the analysis.
