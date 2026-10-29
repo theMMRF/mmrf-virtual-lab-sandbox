@@ -28,7 +28,6 @@ With the local stack running:
 
 ```sh
 python3 scripts/smoke.py
-python3 scripts/proteinpaint_samples_smoke.py
 npx playwright install chromium
 npm run test:ui
 ```
@@ -37,14 +36,6 @@ The API and browser suites cover cohorts, Projects, repository exports/downloads
 mutation counts and survival, ProteinPaint, bulk expression, and single-cell
 views. Browser tests use an isolated headless Chromium profile and save PNGs in
 `screenshots/`.
-
-The focused ProteinPaint API check verifies exact KRAS sample membership,
-sample summaries, variant-circle sample lists, sample-to-case conversion, and
-track reloads for large case-ID cohorts. It sends duplicate JSON content-type
-headers to exercise compatibility with the pinned client. To check the UI,
-open ProteinPaint, search KRAS, click the sample count and List samples, then
-select samples from a variant circle and create a cohort. The saved cohort
-should contain those cases and the lollipop track should still show variants.
 
 For a deployed sandbox, replace the example hostname:
 
@@ -59,3 +50,17 @@ SANDBOX_ORIGIN=https://DISTRIBUTION.cloudfront.net \
 anonymous-access rejection, and the authenticated case count. Deployment and
 teardown also require testing in the target account; mocks cannot establish
 account permissions, quotas, or network-policy enforcement.
+
+## ProteinPaint sample and cohort checks
+
+```sh
+python3 scripts/proteinpaint_samples_smoke.py
+```
+
+The focused ProteinPaint API check verifies exact KRAS sample membership,
+sample summaries, variant-circle sample lists, sample-to-case conversion, and
+track reloads for large case-ID cohorts. It sends duplicate JSON content-type
+headers to exercise compatibility with the pinned client. To check the UI,
+open ProteinPaint, search KRAS, click the sample count and List samples, then
+select samples from a variant circle and create a cohort. The saved cohort
+should contain those cases and the lollipop track should still show variants.
