@@ -56,12 +56,26 @@ test('ProteinPaint duplicate JSON POSTs retain cohort bridging and other media t
     assert.deepEqual(bridged.filter.lst[1], native);
     assert.equal(Number(actual.headers['content-length']), Buffer.byteLength(actual.body));
   }
+  for (const type of [
+    'application/json; charset=utf-8, application/json; charset=utf-8',
+    'Application/JSON; charset="UTF-8", application/json; charset=utf-8',
+    'application/json, application/json; charset=utf-8',
+  ]) {
+    await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:{'content-type':type}, body:JSON.stringify(payload)});
+    const actual = received.at(-1);
+    assert.equal(actual.headers['content-type'], 'application/json');
+    assert.deepEqual(JSON.parse(actual.body).filter.lst[0].tvs.term.values.synthetic.list,
+      cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
+    assert.deepEqual(JSON.parse(actual.body).filter.lst[1], native);
+  }
   // A large GET still becomes a POST, using the same case selection.
   await fetch(origin+'/protein-paint/mds3?'+new URLSearchParams({filter0:JSON.stringify(filter0), genome:'hg38'}));
   assert.equal(received.at(-1).method, 'POST');
   assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[0].tvs.term.values.synthetic.list,
     cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
-  for (const type of ['text/plain', 'application/json, text/plain', 'application/json,']) {
+  for (const type of ['text/plain', 'application/json, text/plain', 'application/json,',
+    'application/json; charset=utf-16, application/json; charset=utf-16',
+    'application/json; profile="other", application/json; profile="other"']) {
     await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:{'content-type':type}, body:'{}'});
     assert.equal(received.at(-1).headers['content-type'], type);
   }

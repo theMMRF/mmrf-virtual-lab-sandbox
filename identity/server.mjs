@@ -105,8 +105,11 @@ const server = http.createServer(async (req, res) => {
     let ppBody;
     if (path.startsWith('/protein-paint/')) {
       // Older PP clients emit both Content-Type and content-type on long
-      // requests. Normalize identical JSON duplicates before parsing/bridging.
-      if (/^application\/json(?:\s*,\s*application\/json)+$/i.test(req.headers['content-type'] || '')) {
+      // requests. JSON uses UTF-8; repair duplicates with the same encoding
+      // before bridging, without accepting conflicting or unknown media types.
+      const jsonTypes = (req.headers['content-type'] || '').split(',').map(type => type.trim());
+      if (jsonTypes.length > 1 && jsonTypes.every(type =>
+        /^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?$/i.test(type))) {
         req.headers['content-type'] = 'application/json';
       }
       target = targets.proteinpaint;
