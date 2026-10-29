@@ -20,7 +20,13 @@ export function matches(record, expression, known) {
     return Object.entries(operands).every(([field, wanted]) => {
       const actual = values(record, field);
       if (!actual.length && !known?.(field)) throw new Error(`Unsupported synthetic cohort field: ${field}`);
-      const choices = Array.isArray(wanted) ? wanted : [wanted];
+      // Legacy ProteinPaint cohorts store mapped sample objects. Real Guppy /
+      // Elasticsearch accepts this form; preserve it in the local PP bridge too.
+      const choices = (Array.isArray(wanted) ? wanted : [wanted]).map(value =>
+        ['case_id', 'cases.case_id'].includes(field) && value != null &&
+        typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 1 &&
+        Object.hasOwn(value, 'cases.case_id') && typeof value['cases.case_id'] === 'string'
+          ? value['cases.case_id'] : value);
       if (op === 'in' || op === '=') return actual.some(v => choices.includes(v));
       if (op === 'exclude' || op === '!=') return !actual.some(v => choices.includes(v));
       return actual.some(v => v != null && ({ '>': v > wanted, '>=': v >= wanted, '<': v < wanted, '<=': v <= wanted })[op]);

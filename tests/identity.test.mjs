@@ -40,3 +40,23 @@ test('cohort bridge keeps nested case selection and ProteinPaint filters in inte
   const empty = bridgePayload({ filter0: { in: { gender: ['absent'] } } }, cases);
   assert.deepEqual(empty.filter.lst[0].tvs.term.values.synthetic.list, []);
 });
+
+test('legacy ProteinPaint sample objects select the same cases as scalar IDs', () => {
+  const cases = [{case_id:'SYNTH-CASE-1'}, {case_id:'SYNTH-CASE-2'}, {case_id:'SYNTH-CASE-3'}];
+  const ids = [cases[0].case_id, cases[2].case_id];
+  const samples = ids.map(id => ({'cases.case_id':id}));
+  for (const field of ['case_id', 'cases.case_id']) {
+    const scalar = {in:{[field]:ids}};
+    const legacy = {in:{[field]:samples}};
+    assert.deepEqual(bridgePayload({filter0:legacy}, cases), bridgePayload({filter0:scalar}, cases));
+    assert.deepEqual(bridgePayload({filter0:legacy}, cases).filter.lst[0].tvs.term.values.synthetic.list,
+      [{sample:1}, {sample:3}]);
+    assert.equal(matches(cases[1], {exclude:{[field]:samples}}), true);
+    assert.equal(matches(cases[0], {exclude:{[field]:samples}}), false);
+  }
+  for (const malformed of [{wrong:ids[0]}, {'cases.case_id':ids[0], extra:true}, {'cases.case_id':[ids[0]]}]) {
+    assert.equal(matches(cases[0], {in:{case_id:[malformed]}}), false);
+  }
+  assert.equal(matches({gender:'female'}, {in:{gender:[{'cases.case_id':'female'}]}}), false);
+  assert.deepEqual(samples, ids.map(id => ({'cases.case_id':id})));
+});
