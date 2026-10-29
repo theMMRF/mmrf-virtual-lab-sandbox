@@ -104,6 +104,11 @@ const server = http.createServer(async (req, res) => {
     if (path.startsWith('/analysis/')) target = targets.analysis;
     let ppBody;
     if (path.startsWith('/protein-paint/')) {
+      // Older PP clients emit both Content-Type and content-type on long
+      // requests. Normalize identical JSON duplicates before parsing/bridging.
+      if (/^application\/json(?:\s*,\s*application\/json)+$/i.test(req.headers['content-type'] || '')) {
+        req.headers['content-type'] = 'application/json';
+      }
       target = targets.proteinpaint;
       const ppUrl = new URL(req.url.slice('/protein-paint'.length), target);
       if (ppUrl.searchParams.has('filter0')) {
@@ -123,7 +128,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       targetPath = ppUrl.pathname + ppUrl.search;
-      if (req.method === 'POST' && req.headers['content-type']?.includes('application/json')) {
+      if (req.method === 'POST' && /^application\/json(?:\s*;[^,]*)?$/i.test(req.headers['content-type'] || '')) {
         ppBody = Buffer.from(JSON.stringify(bridgePayload(JSON.parse((await body(req)).toString()), cases)));
       }
     }

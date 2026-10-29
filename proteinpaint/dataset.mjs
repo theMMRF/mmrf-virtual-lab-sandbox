@@ -31,6 +31,10 @@ export default function (_common, refs) {
   return {
     isMds3: true,
     label: 'Synthetic MMRF',
+    variant2samples: {
+      variantkey: 'ssm_id',
+      twLst: [{id: 'gender', q: {}}, {id: 'race', q: {}}],
+    },
     // Public ProteinPaint presentation API: use the curated Virtual Lab menu.
     commonCharts: {summaryInput: true, survival: true, DA: true},
     cohort: {
