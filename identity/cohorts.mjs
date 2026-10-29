@@ -28,18 +28,39 @@ export function matches(record, expression, known) {
   });
 }
 
+/**
+ * Resolve Gen3 case filters, including saved-cohort terms, into native
+ * ProteinPaint sample lists using the generated cases' sample-ID order.
+ */
 export function bridgePayload(input, cases) {
   if (input.samplelst?.groups) input = {...input, samplelst: {...input.samplelst, groups: input.samplelst.groups.map(group => bridgePayload(group, cases))}};
-  if (!input.filter0) return input;
-  const expression = typeof input.filter0 === 'string' ? JSON.parse(input.filter0) : input.filter0;
   const fields = new Map();
   const known = field => {
     if (!fields.has(field)) fields.set(field, cases.some(record => values(record, field).length > 0));
     return fields.get(field);
   };
-  const samples = cases.flatMap((record, index) => matches(record, expression, known) ? [{ sample: index + 1 }] : []);
-  const scope = { type: 'tvs', tvs: { term: { type: 'samplelst', values: { synthetic: { key: 'synthetic', label: 'Synthetic cohort', list: samples } } } } };
-  const filter = typeof input.filter === 'string' ? JSON.parse(input.filter) : input.filter;
+  const sampleScope = expression => {
+    if (typeof expression === 'string') expression = JSON.parse(expression);
+    const samples = cases.flatMap((record, index) => matches(record, expression, known) ? [{ sample: index + 1 }] : []);
+    return { type: 'tvs', tvs: { term: { type: 'samplelst', values: { synthetic: { key: 'synthetic', label: 'Synthetic cohort', list: samples } } } } };
+  };
+  // The public Cohort picker embeds a saved Gen3 filter in term.filter0.
+  // SQLite ProteinPaint datasets consume sample lists instead of Gen3 filters.
+  const bridgeFilter = filter => {
+    if (typeof filter === 'string') filter = JSON.parse(filter);
+    if (filter?.type === 'tvslst' && Array.isArray(filter.lst)) {
+      const lst = filter.lst.map(bridgeFilter);
+      return lst.every((item, i) => item === filter.lst[i]) ? filter : {...filter, lst};
+    }
+    if (filter?.tvs?.term?.type !== 'cohort') return filter;
+    const term = filter.tvs.term;
+    if (!Object.hasOwn(term, 'filter0') || term.filter0 == null) throw new Error('Saved cohort is missing its case filter');
+    const scope = sampleScope(term.filter0);
+    return {...filter, tvs: {...filter.tvs, term: {...scope.tvs.term, id: term.id, name: term.name}}};
+  };
+  const filter = bridgeFilter(input.filter);
+  if (!input.filter0) return filter === input.filter ? input : {...input, filter};
+  const scope = sampleScope(input.filter0);
   const native = filter?.type === 'tvslst' && filter.lst?.length === 0 && filter.in !== false ? null : filter;
   const merged = { type: 'tvslst', in: true, join: 'and', lst: [scope, ...(native ? [native] : [])] };
   const result = { ...input, filter: merged };
