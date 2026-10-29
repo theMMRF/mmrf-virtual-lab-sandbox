@@ -28,6 +28,10 @@ export function matches(record, expression, known) {
   });
 }
 
+/**
+ * Resolve Gen3 case filters, including saved-cohort terms, into native
+ * ProteinPaint sample lists using the generated cases' sample-ID order.
+ */
 export function bridgePayload(input, cases) {
   if (input.samplelst?.groups) input = {...input, samplelst: {...input.samplelst, groups: input.samplelst.groups.map(group => bridgePayload(group, cases))}};
   const fields = new Map();
