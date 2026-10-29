@@ -73,6 +73,12 @@ test('ProteinPaint duplicate JSON POSTs retain cohort bridging and other media t
   assert.equal(received.at(-1).method, 'POST');
   assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[0].tvs.term.values.synthetic.list,
     cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
+  const legacy = {and:[{in:{case_id:filter0.and[0].in.case_id.map(id => ({'cases.case_id':id}))}}]};
+  await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:duplicate,
+    body:JSON.stringify({...payload, filter0:legacy})});
+  assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[0].tvs.term.values.synthetic.list,
+    cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
+  assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[1], native);
   for (const type of ['text/plain', 'application/json, text/plain', 'application/json,',
     'application/json; charset=utf-16, application/json; charset=utf-16',
     'application/json; profile="other", application/json; profile="other"']) {

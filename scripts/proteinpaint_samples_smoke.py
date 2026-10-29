@@ -56,12 +56,23 @@ for selected in [cases, [c for c in cases if c['gender'] == 'female']]:
     mapping = call('termdb', {'for': 'convertSampleId', 'inputs': sorted(expected_carriers)})['mapping']
     expected_mapping = {c['sample_id']: c['case_id'] for c in selected if c['sample_id'] in expected_carriers}
     assert mapping == expected_mapping
-    # Match the scalar case-ID filter emitted by the Virtual Lab save-cohort wrapper.
-    cohort = {'and': [{'in': {'case_id': sorted(mapping.values())}}]}
-    rebuilt = call('mds3', {**track_query, 'filter0': cohort}, duplicate=True)
-    assert rebuilt['sampleTotalNumber'] == len(expected_carriers)
-    assert next(v for v in rebuilt['skewer'] if v['ssm_id'] == hotspot['ssm_id'])['occurrence'] == len(expected_carriers)
-    print(f'PASS: {len(expected)} KRAS samples, summary, hotspot list, and {len(expected_carriers)}-case cohort reload')
+    # Existing cohorts contain mapped objects; normalized cohorts contain strings.
+    # Check both against actual Guppy as well as the PP bridge, which previously
+    # rejected objects even though Guppy accepted them.
+    for operands in [sorted(mapping.values()), [{'cases.case_id': case_id} for case_id in sorted(mapping.values())]]:
+        cohort = {'and': [{'in': {'case_id': operands}}]}
+        guppy_request = urllib.request.Request(origin + '/guppy/graphql',
+            data=json.dumps({'query': 'query($filter:JSON){CaseCentric_case_centric(first:1000,filter:$filter){case_id}}',
+                'variables': {'filter': cohort}}).encode(),
+            headers={**access_headers, 'Content-Type': 'application/json'})
+        with opener.open(guppy_request, timeout=90) as response:
+            guppy = json.load(response)
+        assert not guppy.get('errors'), guppy
+        assert {c['case_id'] for c in guppy['data']['CaseCentric_case_centric']} == set(mapping.values())
+        rebuilt = call('mds3', {**track_query, 'filter0': cohort}, duplicate=True)
+        assert rebuilt['sampleTotalNumber'] == len(expected_carriers)
+        assert next(v for v in rebuilt['skewer'] if v['ssm_id'] == hotspot['ssm_id'])['occurrence'] == len(expected_carriers)
+    print(f'PASS: {len(expected)} KRAS samples, summary, hotspot list, and {len(expected_carriers)}-case cohort reload (scalar and legacy object IDs)')
 
 empty = call('mds3', {'filter0': {'and': [{'in': {'case_id': ['SYNTH-CASE-NO-MATCH']}}]},
     'variant2samples': 1, 'get': 'samples', 'rglst': region}, duplicate=True)
