@@ -95,6 +95,9 @@ class SyntheticIntegrity(unittest.TestCase):
                         self.assertGreaterEqual(feature['start'], 1)
                         self.assertLessEqual(feature['stop'], len(protein))
                         self.assertLessEqual(feature['start'], feature['stop'])
+                        self.assertRegex(feature['color'], r'^#[0-9a-fA-F]{6}$')
+                    for feature in model['pdomains'][1:]:
+                        self.assertTrue(feature['url'].startswith(('https://rest.uniprot.org/', 'https://www.ebi.ac.uk/interpro/')))
                     self.assertEqual(model['cdslen'], 3 * len(protein))
                     self.assertEqual(len(model['genomicseq']), model['codingstop'] - model['codingstart'])
                     for variant in generator.variant_templates(symbol, gid, chrom, start):
@@ -110,6 +113,7 @@ class SyntheticIntegrity(unittest.TestCase):
                 self.assertEqual(len(kras['aaseq']), 188)
                 ras = next(d for d in kras['pdomains'] if d['name'] == 'Ras')
                 self.assertEqual((ras['start'], ras['stop']), (5, 164))
+                self.assertEqual(ras['url'], 'https://www.ebi.ac.uk/interpro/api/entry/pfam/PF00071/protein/uniprot/P01116/')
                 myc = json.loads(db.execute("select genemodel from genes where name='MYC'").fetchone()[0])
                 bhlh = next(d for d in myc['pdomains'] if d['name'] == 'bHLH')
                 self.assertEqual((bhlh['start'], bhlh['stop']), (354, 406))

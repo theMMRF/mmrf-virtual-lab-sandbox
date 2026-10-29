@@ -118,9 +118,8 @@ def protein_annotations(symbol):
               'Zinc finger': '#beaeda', 'Region': '#c8df86', 'Motif': '#91c4e3'}
     for feature in protein.get('features', []):
         domain = {'name': feature['description'], 'description': feature['type'],
-                  'start': feature['start'], 'stop': feature['stop'], 'color': colors[feature['type']]}
-        if 'pfam' in feature:
-            domain['pfam'] = feature['pfam']
+                  'start': feature['start'], 'stop': feature['stop'], 'color': colors[feature['type']],
+                  'url': feature['source']}
         domains.append(domain)
     return domains
 
