@@ -36,7 +36,7 @@ export default function (_common, refs) {
     cohort: {
       db: { file: 'termdb.sqlite' },
       termdb: {
-        allowedTermTypes: ['geneVariant'],
+        allowedTermTypes: ['geneVariant', 'cohort'],
         displaySampleIds: () => true,
         timeUnit: 'years',
         matrix: { appName: 'OncoMatrix' },

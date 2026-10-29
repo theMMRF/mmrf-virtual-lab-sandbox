@@ -106,7 +106,7 @@ const server = http.createServer(async (req, res) => {
     if (path.startsWith('/protein-paint/')) {
       target = targets.proteinpaint;
       const ppUrl = new URL(req.url.slice('/protein-paint'.length), target);
-      if (ppUrl.searchParams.has('filter0')) {
+      if (['filter0', 'filter', 'samplelst'].some(key => ppUrl.searchParams.has(key))) {
         const payload = Object.fromEntries([...ppUrl.searchParams].map(([key, value]) => {
           try { return [key, JSON.parse(value)]; } catch { return [key, value]; }
         }));
@@ -118,8 +118,10 @@ const server = http.createServer(async (req, res) => {
           ppBody = Buffer.from(JSON.stringify(bridged));
           ppUrl.search = '';
         } else {
-          ppUrl.searchParams.delete('filter0');
-          if (bridged.filter) ppUrl.searchParams.set('filter', JSON.stringify(bridged.filter));
+          for (const key of ['filter0', 'filter', 'samplelst']) {
+            if (bridged[key] === undefined) ppUrl.searchParams.delete(key);
+            else ppUrl.searchParams.set(key, JSON.stringify(bridged[key]));
+          }
         }
       }
       targetPath = ppUrl.pathname + ppUrl.search;
