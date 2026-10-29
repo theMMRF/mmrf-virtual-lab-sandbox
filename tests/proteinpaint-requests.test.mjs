@@ -61,7 +61,9 @@ test('ProteinPaint duplicate JSON POSTs retain cohort bridging and other media t
     'Application/JSON; charset="UTF-8", application/json; charset=utf-8',
     'application/json, application/json; charset=utf-8',
   ]) {
-    await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:{'content-type':type}, body:JSON.stringify(payload)});
+    const response = await fetch(origin+'/protein-paint/mds3',
+      {method:'POST', headers:{'content-type':type}, body:JSON.stringify(payload)});
+    assert.equal(response.status, 200);
     const actual = received.at(-1);
     assert.equal(actual.headers['content-type'], 'application/json');
     assert.deepEqual(JSON.parse(actual.body).filter.lst[0].tvs.term.values.synthetic.list,
@@ -74,8 +76,9 @@ test('ProteinPaint duplicate JSON POSTs retain cohort bridging and other media t
   assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[0].tvs.term.values.synthetic.list,
     cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
   const legacy = {and:[{in:{case_id:filter0.and[0].in.case_id.map(id => ({'cases.case_id':id}))}}]};
-  await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:duplicate,
+  const legacyResponse = await fetch(origin+'/protein-paint/mds3', {method:'POST', headers:duplicate,
     body:JSON.stringify({...payload, filter0:legacy})});
+  assert.equal(legacyResponse.status, 200);
   assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[0].tvs.term.values.synthetic.list,
     cases.flatMap((_, i) => i%2 === 0 ? [{sample:i+1}] : []));
   assert.deepEqual(JSON.parse(received.at(-1).body).filter.lst[1], native);
