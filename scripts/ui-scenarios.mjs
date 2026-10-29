@@ -10,6 +10,13 @@ if (url.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(url.hostnam
 const variants = JSON.parse(await readFile(new URL('../generated/variants.json', import.meta.url)));
 const cases = JSON.parse(await readFile(new URL('../generated/cases.json', import.meta.url)));
 const proteins = JSON.parse(await readFile(new URL('../synthetic/public-proteins.json', import.meta.url)));
+const featureBandColors = {
+  Domain: '#ffc574',
+  'DNA binding': '#8dd3c7',
+  'Zinc finger': '#beaeda',
+  Region: '#c8df86',
+  Motif: '#91c4e3',
+};
 await mkdir('screenshots', {recursive: true});
 let browser;
 let page;
@@ -67,8 +74,14 @@ try {
       // The native viewer hides letters when they cannot fit. Both the full
       // reference band and real feature bands must still be drawn at that scale.
       await expect(page.locator('svg rect[fill="#e4e9ee"]')).toBeVisible({timeout: 30000});
-      const featureBands = page.locator('svg rect[fill="#ffc574"], svg rect[fill="#8dd3c7"]').filter({visible: true});
-      await expectInViewport(featureBands);
+      for (const type of new Set(proteins[symbol].features.map(feature => feature.type))) {
+        const color = featureBandColors[type];
+        expect(color, `Feature color for ${type}`).toBeDefined();
+        const featureBands = page.locator(`svg rect[fill="${color}"]`).filter({visible: true});
+        const expectedBands = proteins[symbol].features.filter(feature => feature.type === type).length;
+        await expect(featureBands).toHaveCount(expectedBands);
+        await expectInViewport(featureBands);
+      }
       if (!['KRAS', 'MYC'].includes(symbol)) continue;
       await capture(`${symbol.toLowerCase()}-${width}-domains`);
       const residues = page.locator('svg text').filter({hasText: /^[ACDEFGHIKLMNPQRSTVWY]$/}).filter({visible: true});
