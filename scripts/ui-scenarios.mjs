@@ -24,6 +24,13 @@ async function capture(name) {
   await page.waitForTimeout(1500);
   await page.screenshot({path: `screenshots/${name}.png`, fullPage: true});
 }
+async function expectInViewport(elements) {
+  await expect(elements).not.toHaveCount(0);
+  await elements.first().scrollIntoViewIfNeeded();
+  for (const element of await elements.all()) {
+    await expect(element).toBeInViewport();
+  }
+}
 try {
   for (const symbol of ['KRAS', 'NRAS', 'TP53', 'BRAF', 'DIS3', 'MYC']) {
     await open('ProteinPaint');
@@ -34,10 +41,12 @@ try {
     await expect(page.getByText(`${new Set(carriers.map(v => v.ssm_id)).size} variants`, {exact: true})).toBeVisible({timeout: 30000});
     await expect(page.getByText(`${new Set(carriers.map(v => v.case_id)).size} samples`, {exact: true})).toBeVisible({timeout: 30000});
     await expect(page.locator('svg rect[fill="#e4e9ee"]')).toBeVisible();
+    await expectInViewport(page.locator('svg rect[fill="#e4e9ee"]'));
     await expect(page.locator(`a[href="${proteins[symbol].features[0].source}"]`).first()).toBeVisible();
     if (symbol === 'KRAS') {
       const residues = page.locator('svg text').filter({hasText: /^[ACDEFGHIKLMNPQRSTVWY]$/}).filter({visible: true});
       await expect(residues).toHaveCount(188);
+      await expectInViewport(residues);
       expect((await residues.allTextContents()).join('')).toBe(proteins.KRAS.sequence);
       await expect(page.getByText('p.G12D', {exact: true})).toBeVisible();
       await expect(page.getByText('p.Q61H', {exact: true})).toBeVisible();
@@ -56,7 +65,8 @@ try {
       // The native viewer hides letters when they cannot fit. Both the full
       // reference band and real feature bands must still be drawn at that scale.
       await expect(page.locator('svg rect[fill="#e4e9ee"]')).toBeVisible({timeout: 30000});
-      await expect(page.locator('svg rect[fill="#ffc574"], svg rect[fill="#8dd3c7"]').filter({visible: true})).not.toHaveCount(0);
+      const featureBands = page.locator('svg rect[fill="#ffc574"], svg rect[fill="#8dd3c7"]').filter({visible: true});
+      await expectInViewport(featureBands);
       if (!['KRAS', 'MYC'].includes(symbol)) continue;
       await capture(`${symbol.toLowerCase()}-${width}-domains`);
       const residues = page.locator('svg text').filter({hasText: /^[ACDEFGHIKLMNPQRSTVWY]$/}).filter({visible: true});
@@ -65,6 +75,7 @@ try {
         await page.waitForTimeout(700);
       }
       await expect(residues).not.toHaveCount(0);
+      await expectInViewport(residues);
       const sequence = (await residues.allTextContents()).join('');
       expect(proteins[symbol].sequence.includes(sequence)).toBe(true);
       await capture(`${symbol.toLowerCase()}-${width}-sequence`);
