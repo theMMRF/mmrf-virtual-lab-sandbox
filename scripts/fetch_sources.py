@@ -15,7 +15,7 @@ def checkout(dest, commit):
 for name, source in json.loads((root / "sources.json").read_text()).items():
     dest = root / ".sources" / name
     if dest.exists():
-        if subprocess.check_output(["git", "-C", str(dest), "status", "--porcelain"], text=True):
+        if subprocess.check_output(["git", "-C", str(dest), "status", "--porcelain", "--untracked-files=all"], text=True):
             raise SystemExit(f"{dest} has local edits. Commit or discard them, "
                              "or build with docker compose directly while editing.")
         actual = subprocess.check_output(["git", "-C", str(dest), "rev-parse", "HEAD"], text=True).strip()
