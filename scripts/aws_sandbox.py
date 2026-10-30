@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 from contextlib import contextmanager
+import fcntl
 import ipaddress
 import json
 import os
@@ -332,36 +333,21 @@ def confirm(config, yes, action):
         raise ValueError("Cancelled before resource changes")
 
 
-def running(pid):
-    try:
-        os.kill(int(pid), 0)
-    except (ValueError, ProcessLookupError):
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
 @contextmanager
 def lock(directory):
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / "operator.lock"
+    # The OS releases a flock when its process exits, so an interrupted run
+    # (closed laptop, kill -9) cannot leave a stale lock. The file is never
+    # deleted; removing a lock path would let two launchers lock different files.
+    fd = os.open(directory / "operator.lock", os.O_CREAT | os.O_WRONLY, 0o600)
     try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    except FileExistsError:
-        # A killed run (closed laptop, kill -9) leaves its lock behind; reclaim it
-        # only when the recorded launcher process no longer exists.
-        if running(path.read_text().strip()):
-            raise ValueError(f"Another launcher command is running; if not, delete {path}") from None
-        print("Removing stale launcher lock from an interrupted run", flush=True)
-        path.unlink()
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    os.write(fd, str(os.getpid()).encode())
-    os.close(fd)
-    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError("Another launcher command is running in this checkout") from None
         yield
     finally:
-        path.unlink()
+        os.close(fd)
 
 
 def initialize(args):

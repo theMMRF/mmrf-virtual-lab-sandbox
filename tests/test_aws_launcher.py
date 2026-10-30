@@ -163,18 +163,16 @@ class LauncherTests(unittest.TestCase):
         operator.empty_repository.assert_not_called()
         self.assertFalse(any(call.args[0] == "apply" for call in operator.tf.call_args_list))
 
-    def test_lock_reclaims_stale_lock_and_refuses_live_one(self):
+    def test_lock_ignores_leftover_file_and_refuses_held_lock(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "operator.lock"
-            path.write_text("999999999")
+            # A file left by an interrupted run holds no OS lock.
+            (Path(directory) / "operator.lock").write_text("12345")
             with launcher.lock(Path(directory)):
-                self.assertEqual(path.read_text(), str(os.getpid()))
-            self.assertFalse(path.exists())
-            path.write_text(str(os.getpid()))
-            with self.assertRaisesRegex(ValueError, "Another launcher command is running"):
-                with launcher.lock(Path(directory)):
-                    pass
-            self.assertTrue(path.exists())
+                with self.assertRaisesRegex(ValueError, "Another launcher command is running"):
+                    with launcher.lock(Path(directory)):
+                        pass
+            with launcher.lock(Path(directory)):
+                pass
 
     def test_deploy_applies_exactly_the_saved_plan(self):
         operator = launcher.Operator(CONFIG)
